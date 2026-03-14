@@ -2,7 +2,8 @@ import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
 import { Card, DashboardShell } from "@/app/components/shell";
 import { GuardQrScanner } from "@/app/guard/qr-scanner";
-import { acceptAnnouncedVisitAction } from "@/app/guard/actions";
+import { GuardManualAcceptForm } from "@/app/guard/guard-manual-accept-form";
+import { GuardManualEntryForm } from "@/app/guard/guard-manual-entry-form";
 import { GuardPushSubscriptionCard } from "@/app/guard/push-subscription";
 import { GuardAutoRefresh } from "@/app/guard/guard-auto-refresh";
 import { GuardDeliveryAnnouncementForm } from "@/app/guard/delivery-announcement-form";
@@ -44,6 +45,25 @@ export default async function GuardPage() {
     },
     orderBy: { createdAt: "desc" },
     take: 40,
+  });
+  const guardGeneratedEntries = await prisma.qrCode.findMany({
+    where: {
+      residentialId: session.residentialId,
+      description: {
+        startsWith: "GUARD_GENERATED:",
+      },
+    },
+    include: {
+      resident: { select: { fullName: true } },
+      scans: {
+        where: { isValid: true },
+        orderBy: { scannedAt: "desc" },
+        take: 1,
+        select: { scannedAt: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 20,
   });
   const recentRegisteredAnnouncements = await prisma.qrScan.findMany({
     where: {
@@ -110,6 +130,52 @@ export default async function GuardPage() {
       </Card>
 
       <Card>
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">Entrada manual por llamada</h2>
+        <p className="mb-4 text-sm text-slate-600">
+          Si el residente anuncia por llamada, crea una entrada manual con residente, visita y duracion.
+        </p>
+        <GuardManualEntryForm residents={residents} />
+        <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-700">
+          Entradas generadas por guardia
+        </h3>
+        <div className="mt-2 grid gap-3 md:grid-cols-2">
+          {guardGeneratedEntries.map((entry) => {
+            const wasAccepted = entry.scans.length > 0;
+            return (
+              <div key={entry.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-900">{entry.visitorName}</p>
+                  <span
+                    className={
+                      wasAccepted
+                        ? "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+                        : "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
+                    }
+                  >
+                    {wasAccepted ? "Registrada" : "Pendiente"}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-600">Residente: {entry.resident.fullName}</p>
+                <p className="text-xs text-slate-500">
+                  Tipo de acceso: {entry.hasVehicle ? "Vehiculo" : "Acceso peatonal"}
+                </p>
+                <p className="text-xs text-slate-500">Creada: {formatDateTimeTegucigalpa(entry.createdAt)}</p>
+                <p className="text-xs text-slate-500">Expira: {formatDateTimeTegucigalpa(entry.validUntil)}</p>
+                {wasAccepted ? (
+                  <p className="mt-1 text-xs text-slate-600">
+                    Registrada por guardia: {formatDateTimeTegucigalpa(entry.scans[0].scannedAt)}
+                  </p>
+                ) : null}
+              </div>
+            );
+          })}
+          {guardGeneratedEntries.length === 0 ? (
+            <p className="text-sm text-slate-600">Aun no hay entradas creadas manualmente por guardia.</p>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card>
         <h2 className="mb-2 text-lg font-semibold text-slate-900">Reservas de zonas para hoy</h2>
         <p className="mb-4 text-sm text-slate-600">
           Reservas activas del dia actual para control de acceso en caseta.
@@ -135,35 +201,32 @@ export default async function GuardPage() {
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Anuncios recientes</h2>
         <GuardPushSubscriptionCard />
-        <h3 className="mt-4 text-sm font-semibold uppercase tracking-wide text-slate-700">
-          Anuncios pendientes
-        </h3>
-        <div className="mt-2 grid gap-3 md:grid-cols-2">
-          {pendingInvites.map((invite) => (
-            <div key={invite.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-              <p className="font-semibold text-slate-900">{invite.visitorName}</p>
-              <p className="text-sm text-slate-600">Residente: {invite.resident.fullName}</p>
-              {invite.description ? (
-                <p className="text-xs text-slate-600">Descripcion: {invite.description}</p>
-              ) : null}
-              <p className="text-xs text-slate-500">
-                Tipo de acceso: {invite.hasVehicle ? "Vehiculo" : "Acceso peatonal"}
-              </p>
-              <p className="text-xs text-slate-500">
-                Expira: {formatDateTimeTegucigalpa(invite.validUntil)}
-              </p>
-              <form action={acceptAnnouncedVisitAction} className="mt-2">
-                <input type="hidden" name="qrId" value={invite.id} />
-                <button className="w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100">
-                  Aceptar llegada manualmente
-                </button>
-              </form>
-            </div>
-          ))}
-          {pendingInvites.length === 0 ? (
-            <p className="text-sm text-slate-600">No hay anuncios pendientes ahora mismo.</p>
-          ) : null}
-        </div>
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-700">
+            Acceso manual (anuncios pendientes)
+          </summary>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {pendingInvites.map((invite) => (
+              <div key={invite.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                <p className="font-semibold text-slate-900">{invite.visitorName}</p>
+                <p className="text-sm text-slate-600">Residente: {invite.resident.fullName}</p>
+                {invite.description ? (
+                  <p className="text-xs text-slate-600">Descripcion: {invite.description}</p>
+                ) : null}
+                <p className="text-xs text-slate-500">
+                  Tipo de acceso: {invite.hasVehicle ? "Vehiculo" : "Acceso peatonal"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Expira: {formatDateTimeTegucigalpa(invite.validUntil)}
+                </p>
+                <GuardManualAcceptForm qrId={invite.id} hasVehicle={invite.hasVehicle} />
+              </div>
+            ))}
+            {pendingInvites.length === 0 ? (
+              <p className="text-sm text-slate-600">No hay anuncios pendientes ahora mismo.</p>
+            ) : null}
+          </div>
+        </details>
 
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-slate-700">
