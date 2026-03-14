@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   endGuardShiftAction,
   markGuardShiftHeartbeatAction,
@@ -8,6 +8,87 @@ import {
 } from "@/app/guard/actions";
 
 const initialState: string | null = null;
+const MAX_IMAGE_UPLOAD_BYTES = 600 * 1024;
+
+function fileNameToJpeg(name: string) {
+  const lastDot = name.lastIndexOf(".");
+  if (lastDot <= 0) return `${name}.jpg`;
+  return `${name.slice(0, lastDot)}.jpg`;
+}
+
+function loadImageElement(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const imageUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(imageUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl);
+      reject(new Error("No se pudo leer la selfie."));
+    };
+    image.src = imageUrl;
+  });
+}
+
+async function canvasToJpegBlob(
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+  quality: number,
+): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = Math.max(1, Math.round(height));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No se pudo preparar la compresion de selfie.");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((result) => resolve(result), "image/jpeg", quality);
+  });
+  if (!blob) throw new Error("No se pudo convertir la selfie.");
+  return blob;
+}
+
+async function optimizeImageForUpload(file: File, maxBytes = MAX_IMAGE_UPLOAD_BYTES): Promise<File> {
+  if (file.size > 0 && file.size <= maxBytes && file.type === "image/jpeg") {
+    return file;
+  }
+
+  const image = await loadImageElement(file);
+  const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
+  const initialScale = longestSide > 1280 ? 1280 / longestSide : 1;
+  let scale = initialScale;
+  let quality = 0.8;
+  let bestBlob: Blob | null = null;
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const width = image.naturalWidth * scale;
+    const height = image.naturalHeight * scale;
+    const candidateBlob = await canvasToJpegBlob(image, width, height, quality);
+    bestBlob = candidateBlob;
+    if (candidateBlob.size <= maxBytes) {
+      return new File([candidateBlob], fileNameToJpeg(file.name), {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+    }
+
+    if (quality > 0.45) {
+      quality -= 0.1;
+    } else {
+      scale *= 0.8;
+    }
+  }
+
+  if (!bestBlob) throw new Error("No se pudo optimizar la selfie.");
+  return new File([bestBlob], fileNameToJpeg(file.name), {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
+}
 
 function formatCountdown(targetIso: string | null) {
   if (!targetIso) return "Sin turno activo";
@@ -34,6 +115,9 @@ export function GuardShiftCard({
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [geoMessage, setGeoMessage] = useState<string | null>(null);
+  const [startSelfieError, setStartSelfieError] = useState<string | null>(null);
+  const [markSelfieError, setMarkSelfieError] = useState<string | null>(null);
+  const [endSelfieError, setEndSelfieError] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(Date.now());
 
   useEffect(() => {
@@ -75,6 +159,30 @@ export function GuardShiftCard({
     });
   }
 
+  async function handleShiftSubmit(
+    event: FormEvent<HTMLFormElement>,
+    dispatch: (payload: FormData) => void,
+    onError: (message: string | null) => void,
+  ) {
+    event.preventDefault();
+    onError(null);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const selfie = formData.get("selfie");
+    if (!(selfie instanceof File) || selfie.size <= 0) {
+      onError("Debes adjuntar una selfie valida.");
+      return;
+    }
+
+    try {
+      const optimizedSelfie = await optimizeImageForUpload(selfie);
+      formData.set("selfie", optimizedSelfie);
+      dispatch(formData);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "No se pudo procesar la selfie.");
+    }
+  }
+
   return (
     <div className="grid gap-3">
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
@@ -104,7 +212,12 @@ export function GuardShiftCard({
       {geoMessage ? <p className="text-xs text-slate-600">{geoMessage}</p> : null}
 
       {!hasOpenShift ? (
-        <form action={startAction} className="grid gap-2">
+        <form
+          className="grid gap-2"
+          onSubmit={(event) => {
+            void handleShiftSubmit(event, startAction, setStartSelfieError);
+          }}
+        >
           <input type="hidden" name="latitude" value={latitude} readOnly />
           <input type="hidden" name="longitude" value={longitude} readOnly />
           <input
@@ -118,11 +231,17 @@ export function GuardShiftCard({
           <button disabled={startPending} className="btn-primary w-full disabled:opacity-60 md:w-max">
             {startPending ? "Iniciando turno..." : "Iniciar turno laboral"}
           </button>
+          {startSelfieError ? <p className="text-sm text-red-600">{startSelfieError}</p> : null}
           {startMessage ? <p className="text-sm text-slate-700">{startMessage}</p> : null}
         </form>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          <form action={markAction} className="grid gap-2">
+          <form
+            className="grid gap-2"
+            onSubmit={(event) => {
+              void handleShiftSubmit(event, markAction, setMarkSelfieError);
+            }}
+          >
             <input type="hidden" name="latitude" value={latitude} readOnly />
             <input type="hidden" name="longitude" value={longitude} readOnly />
             <input
@@ -139,10 +258,16 @@ export function GuardShiftCard({
             >
               {markPending ? "Registrando..." : "Marcar checkpoint de turno"}
             </button>
+            {markSelfieError ? <p className="text-sm text-red-600">{markSelfieError}</p> : null}
             {markMessage ? <p className="text-sm text-slate-700">{markMessage}</p> : null}
           </form>
 
-          <form action={endAction} className="grid gap-2">
+          <form
+            className="grid gap-2"
+            onSubmit={(event) => {
+              void handleShiftSubmit(event, endAction, setEndSelfieError);
+            }}
+          >
             <input type="hidden" name="latitude" value={latitude} readOnly />
             <input type="hidden" name="longitude" value={longitude} readOnly />
             <input
@@ -159,6 +284,7 @@ export function GuardShiftCard({
             >
               {endPending ? "Cerrando turno..." : "Finalizar turno laboral"}
             </button>
+            {endSelfieError ? <p className="text-sm text-red-600">{endSelfieError}</p> : null}
             {endMessage ? <p className="text-sm text-slate-700">{endMessage}</p> : null}
           </form>
         </div>

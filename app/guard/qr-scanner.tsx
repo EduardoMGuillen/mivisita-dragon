@@ -15,7 +15,7 @@ type ScanResult = {
 };
 type ScanMode = "entry" | "exit";
 
-const MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_UPLOAD_BYTES = 1200 * 1024;
 
 function fileNameToJpeg(name: string) {
   const lastDot = name.lastIndexOf(".");
