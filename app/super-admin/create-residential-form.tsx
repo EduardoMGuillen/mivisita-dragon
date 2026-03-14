@@ -39,6 +39,29 @@ export function CreateResidentialForm() {
         required
         autoComplete="new-password"
       />
+      <input
+        name="gateLatitude"
+        type="number"
+        step="0.000001"
+        placeholder="Latitud de caseta (opcional)"
+        className="field-base"
+      />
+      <input
+        name="gateLongitude"
+        type="number"
+        step="0.000001"
+        placeholder="Longitud de caseta (opcional)"
+        className="field-base"
+      />
+      <input
+        name="gateRadiusMeters"
+        type="number"
+        min="30"
+        max="1000"
+        defaultValue={80}
+        placeholder="Radio geocerca en metros"
+        className="field-base md:col-span-2"
+      />
       <button
         type="submit"
         disabled={isPending}

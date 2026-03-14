@@ -41,10 +41,17 @@ enum ZoneReservationStatus {
   CANCELLED
 }
 
+enum GuardShiftMarkType {
+  HEARTBEAT
+}
+
 model Residential {
   id            String               @id @default(cuid())
   name          String
   supportPhone  String?
+  gateLatitude  Float?
+  gateLongitude Float?
+  gateRadiusMeters Int              @default(80)
   isSuspended   Boolean              @default(false)
   suspendedAt   DateTime?
   createdAt     DateTime             @default(now())
@@ -57,6 +64,7 @@ model Residential {
   contracts     ServiceContract[]
   deliveries    DeliveryAnnouncement[]
   suggestions   ResidentSuggestion[]
+  guardShifts   GuardShift[]
 }
 
 model User {
@@ -81,6 +89,7 @@ model User {
   receivedAnnouncements   AdminAnnouncementRecipient[]
   createdServiceContracts ServiceContract[]           @relation("ServiceContractCreatedBy")
   residentSuggestions     ResidentSuggestion[]
+  guardShifts             GuardShift[]
 }
 
 model QrCode {
@@ -265,4 +274,59 @@ model ResidentSuggestion {
 
   @@index([residentialId, createdAt])
   @@index([residentId, createdAt])
+}
+
+model GuardShift {
+  id                    String   @id @default(cuid())
+  startedAt             DateTime @default(now())
+  endedAt               DateTime?
+  startLatitude         Float
+  startLongitude        Float
+  startDistanceMeters   Float?
+  startIsAnomalous      Boolean  @default(false)
+  startAnomalyReason    String?
+  startSelfieData       Bytes
+  startSelfieMimeType   String
+  startSelfieSize       Int
+  startSelfieCapturedAt DateTime @default(now())
+  endLatitude           Float?
+  endLongitude          Float?
+  endDistanceMeters     Float?
+  endIsAnomalous        Boolean  @default(false)
+  endAnomalyReason      String?
+  endSelfieData         Bytes?
+  endSelfieMimeType     String?
+  endSelfieSize         Int?
+  endSelfieCapturedAt   DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  guardId               String
+  residentialId         String
+  guard                 User     @relation(fields: [guardId], references: [id], onDelete: Cascade)
+  residential           Residential @relation(fields: [residentialId], references: [id], onDelete: Cascade)
+  marks                 GuardShiftMark[]
+
+  @@index([guardId, startedAt])
+  @@index([residentialId, startedAt])
+  @@index([endedAt])
+}
+
+model GuardShiftMark {
+  id                String   @id @default(cuid())
+  markType          GuardShiftMarkType @default(HEARTBEAT)
+  markedAt          DateTime @default(now())
+  latitude          Float
+  longitude         Float
+  distanceMeters    Float?
+  isAnomalous       Boolean @default(false)
+  anomalyReason     String?
+  selfieData        Bytes
+  selfieMimeType    String
+  selfieSize        Int
+  selfieCapturedAt  DateTime @default(now())
+  shiftId           String
+  shift             GuardShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId, markedAt])
+  @@index([isAnomalous, markedAt])
 }

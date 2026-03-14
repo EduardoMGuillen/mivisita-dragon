@@ -4,10 +4,12 @@ import { Card, DashboardShell } from "@/app/components/shell";
 import { GuardQrScanner } from "@/app/guard/qr-scanner";
 import { GuardManualAcceptForm } from "@/app/guard/guard-manual-accept-form";
 import { GuardManualEntryForm } from "@/app/guard/guard-manual-entry-form";
+import { GuardShiftCard } from "@/app/guard/guard-shift-card";
 import { GuardPushSubscriptionCard } from "@/app/guard/push-subscription";
 import { GuardAutoRefresh } from "@/app/guard/guard-auto-refresh";
 import { GuardDeliveryAnnouncementForm } from "@/app/guard/delivery-announcement-form";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
+import { getNextHeartbeatAt, getOpenGuardShift } from "@/lib/guard-shift";
 
 function tegucigalpaTodayRange(now = new Date()) {
   const tegucigalpaOffsetHours = 6;
@@ -99,6 +101,10 @@ export default async function GuardPage() {
     take: 80,
   });
   const pendingInvites = activeInvites.filter((invite) => invite.scans.length === 0);
+  const openShift = await getOpenGuardShift(session.userId);
+  const nextHeartbeatAt = openShift ? getNextHeartbeatAt(openShift) : null;
+  const now = new Date();
+  const heartbeatOverdue = nextHeartbeatAt ? now.getTime() > nextHeartbeatAt.getTime() : false;
   const residents = await prisma.user.findMany({
     where: {
       residentialId: session.residentialId,
@@ -116,6 +122,17 @@ export default async function GuardPage() {
       user={session.fullName}
     >
       <GuardAutoRefresh />
+      <Card>
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">Marcaje laboral de guardia</h2>
+        <p className="mb-4 text-sm text-slate-600">
+          Debes iniciar turno y registrar checkpoint cada 2 horas con selfie y geolocalizacion.
+        </p>
+        <GuardShiftCard
+          hasOpenShift={Boolean(openShift)}
+          nextHeartbeatAtIso={nextHeartbeatAt ? nextHeartbeatAt.toISOString() : null}
+          heartbeatOverdue={heartbeatOverdue}
+        />
+      </Card>
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Escanear QR</h2>
         <GuardQrScanner />

@@ -13,6 +13,9 @@ const createResidentialSchema = z.object({
   adminName: z.string().min(3, "Nombre del admin invalido."),
   adminEmail: z.string().email("Correo del admin invalido."),
   adminPassword: z.string().min(6, "El password debe tener minimo 6 caracteres."),
+  gateLatitude: z.coerce.number().gte(-90).lte(90).optional(),
+  gateLongitude: z.coerce.number().gte(-180).lte(180).optional(),
+  gateRadiusMeters: z.coerce.number().int().min(30).max(1000).optional(),
 });
 
 const updateResidentialAdminSchema = z.object({
@@ -40,6 +43,13 @@ const toggleResidentialSuspensionSchema = z.object({
   nextStatus: z.enum(["suspend", "activate"]),
 });
 
+const updateResidentialGeoFenceSchema = z.object({
+  residentialId: z.string().min(1, "Residencial invalida."),
+  gateLatitude: z.coerce.number().gte(-90).lte(90).optional(),
+  gateLongitude: z.coerce.number().gte(-180).lte(180).optional(),
+  gateRadiusMeters: z.coerce.number().int().min(30).max(1000),
+});
+
 export async function createResidentialWithAdminAction(
   _prevState: string | null,
   formData: FormData,
@@ -51,6 +61,9 @@ export async function createResidentialWithAdminAction(
     adminName: formData.get("adminName"),
     adminEmail: formData.get("adminEmail"),
     adminPassword: formData.get("adminPassword"),
+    gateLatitude: formData.get("gateLatitude") || undefined,
+    gateLongitude: formData.get("gateLongitude") || undefined,
+    gateRadiusMeters: formData.get("gateRadiusMeters") || undefined,
   });
 
   if (!parsed.success) {
@@ -62,10 +75,20 @@ export async function createResidentialWithAdminAction(
   if (userExists) return "Ya existe un usuario con ese correo.";
 
   const passwordHash = await bcrypt.hash(parsed.data.adminPassword, 10);
+  const hasGeo =
+    typeof parsed.data.gateLatitude === "number" &&
+    Number.isFinite(parsed.data.gateLatitude) &&
+    typeof parsed.data.gateLongitude === "number" &&
+    Number.isFinite(parsed.data.gateLongitude);
 
   await prisma.$transaction(async (tx) => {
     const residential = await tx.residential.create({
-      data: { name: parsed.data.residentialName.trim() },
+      data: {
+        name: parsed.data.residentialName.trim(),
+        gateLatitude: hasGeo ? parsed.data.gateLatitude : null,
+        gateLongitude: hasGeo ? parsed.data.gateLongitude : null,
+        gateRadiusMeters: parsed.data.gateRadiusMeters ?? 80,
+      },
     });
 
     await tx.user.create({
@@ -202,4 +225,33 @@ export async function toggleResidentialSuspensionAction(formData: FormData) {
   });
 
   revalidatePath("/super-admin");
+}
+
+export async function updateResidentialGeoFenceAction(formData: FormData) {
+  await requireRole(["SUPER_ADMIN"]);
+  const parsed = updateResidentialGeoFenceSchema.safeParse({
+    residentialId: formData.get("residentialId"),
+    gateLatitude: formData.get("gateLatitude") || undefined,
+    gateLongitude: formData.get("gateLongitude") || undefined,
+    gateRadiusMeters: formData.get("gateRadiusMeters") || 80,
+  });
+  if (!parsed.success) return;
+
+  const hasGeo =
+    typeof parsed.data.gateLatitude === "number" &&
+    Number.isFinite(parsed.data.gateLatitude) &&
+    typeof parsed.data.gateLongitude === "number" &&
+    Number.isFinite(parsed.data.gateLongitude);
+
+  await prisma.residential.update({
+    where: { id: parsed.data.residentialId },
+    data: {
+      gateLatitude: hasGeo ? parsed.data.gateLatitude : null,
+      gateLongitude: hasGeo ? parsed.data.gateLongitude : null,
+      gateRadiusMeters: parsed.data.gateRadiusMeters,
+    },
+  });
+
+  revalidatePath("/super-admin");
+  revalidatePath("/super-admin/guard-attendance");
 }

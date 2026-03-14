@@ -1,4 +1,5 @@
 import { requireRole } from "@/lib/authorization";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Card, DashboardShell } from "@/app/components/shell";
 import { PasswordField } from "@/app/components/password-field";
@@ -15,6 +16,7 @@ import { ResidentialSuspensionToggle } from "@/app/super-admin/residential-suspe
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
 import {
   deleteResidentialAdminAction,
+  updateResidentialGeoFenceAction,
   updateResidentialAdminAction,
 } from "@/app/super-admin/actions";
 
@@ -233,6 +235,19 @@ export default async function SuperAdminPage({
       </Card>
 
       <Card>
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">Asistencia laboral de guardias</h2>
+        <p className="mb-4 text-sm text-slate-600">
+          Modulo exclusivo de Super Admin para auditar turnos, checkpoints cada 2 horas y anomalias de geolocalizacion.
+        </p>
+        <Link
+          href="/super-admin/guard-attendance"
+          className="btn-primary inline-flex items-center justify-center md:w-max"
+        >
+          Ver asistencia de guardias
+        </Link>
+      </Card>
+
+      <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Residenciales registradas</h2>
         <div className="grid gap-3 md:grid-cols-2">
           {residentials.map((residential) => (
@@ -258,11 +273,48 @@ export default async function SuperAdminPage({
               <p className="mt-2 text-xs text-slate-500">
                 Usuarios: {residential._count.users} | QRs generados: {residential._count.qrCodes}
               </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Geocerca caseta:{" "}
+                {residential.gateLatitude != null && residential.gateLongitude != null
+                  ? `${residential.gateLatitude.toFixed(6)}, ${residential.gateLongitude.toFixed(6)} (${residential.gateRadiusMeters}m)`
+                  : "No configurada"}
+              </p>
               {residential.isSuspended && residential.suspendedAt ? (
                 <p className="mt-1 text-xs text-amber-700">
                   Suspendida desde: {formatDateTimeTegucigalpa(residential.suspendedAt)}
                 </p>
               ) : null}
+              <form action={updateResidentialGeoFenceAction} className="mt-3 grid gap-2 md:grid-cols-3">
+                <input type="hidden" name="residentialId" value={residential.id} />
+                <input
+                  name="gateLatitude"
+                  defaultValue={residential.gateLatitude ?? ""}
+                  className="field-base"
+                  type="number"
+                  step="0.000001"
+                  placeholder="Latitud caseta"
+                />
+                <input
+                  name="gateLongitude"
+                  defaultValue={residential.gateLongitude ?? ""}
+                  className="field-base"
+                  type="number"
+                  step="0.000001"
+                  placeholder="Longitud caseta"
+                />
+                <input
+                  name="gateRadiusMeters"
+                  defaultValue={residential.gateRadiusMeters}
+                  className="field-base"
+                  type="number"
+                  min="30"
+                  max="1000"
+                  placeholder="Radio (m)"
+                />
+                <button className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 md:col-span-3 md:w-max">
+                  Guardar geocerca
+                </button>
+              </form>
               <ResidentialSuspensionToggle
                 residentialId={residential.id}
                 residentialName={residential.name}
