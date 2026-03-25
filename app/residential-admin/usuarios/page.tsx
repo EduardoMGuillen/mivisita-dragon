@@ -1,4 +1,5 @@
 import { Card } from "@/app/components/shell";
+import type { Prisma } from "@prisma/client";
 import { ConfirmSubmitButton } from "@/app/components/confirm-submit-button";
 import { PasswordField } from "@/app/components/password-field";
 import { CreateResidentialUserForm } from "@/app/residential-admin/create-user-form";
@@ -6,21 +7,61 @@ import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
 import {
   deleteResidentialUserAction,
+  toggleResidentialUserSuspensionAction,
   updateResidentialUserAction,
 } from "@/app/residential-admin/actions";
 
-export default async function ResidentialAdminUsersPage() {
+function getSingleParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
+export default async function ResidentialAdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await requireRole(["RESIDENTIAL_ADMIN"]);
   if (!session.residentialId) {
     return <p className="p-8 text-red-600">Sesion invalida: no hay residencial asociada.</p>;
   }
 
+  const params = await searchParams;
+  const searchTerm = getSingleParam(params.q).trim();
+  const roleFilter = getSingleParam(params.role).trim();
+  const statusFilter = getSingleParam(params.status).trim();
+  const normalizedRoleFilter = roleFilter === "RESIDENT" || roleFilter === "GUARD" ? roleFilter : "";
+
+  const usersWhere: Prisma.UserWhereInput = {
+    residentialId: session.residentialId,
+    role: normalizedRoleFilter
+      ? (normalizedRoleFilter as "RESIDENT" | "GUARD")
+      : { in: ["RESIDENT", "GUARD"] },
+    ...(statusFilter === "active"
+      ? { isSuspended: false }
+      : statusFilter === "suspended"
+        ? { isSuspended: true }
+        : {}),
+    ...(searchTerm
+      ? {
+          OR: [
+            { fullName: { contains: searchTerm, mode: "insensitive" as const } },
+            { email: { contains: searchTerm, mode: "insensitive" as const } },
+            { houseNumber: { contains: searchTerm, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
   const users = await prisma.user.findMany({
+    where: usersWhere,
+    orderBy: { createdAt: "desc" },
+  });
+  const totalUsersInResidential = await prisma.user.count({
     where: {
       residentialId: session.residentialId,
       role: { in: ["RESIDENT", "GUARD"] },
     },
-    orderBy: { createdAt: "desc" },
   });
   const residentUsersCount = users.filter((user) => user.role === "RESIDENT").length;
   const guardUsersCount = users.filter((user) => user.role === "GUARD").length;
@@ -35,9 +76,32 @@ export default async function ResidentialAdminUsersPage() {
 
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">
-          Usuarios de la residencial (Total: {users.length} | Residentes: {residentUsersCount} | Guardias:{" "}
-          {guardUsersCount})
+          Usuarios de la residencial (Mostrando: {users.length} de {totalUsersInResidential} | Residentes:{" "}
+          {residentUsersCount} | Guardias: {guardUsersCount})
         </h2>
+
+        <form method="get" className="mb-4 grid gap-2 md:grid-cols-4">
+          <input
+            name="q"
+            defaultValue={searchTerm}
+            className="field-base"
+            placeholder="Buscar nombre, correo o vivienda"
+          />
+          <select name="role" defaultValue={roleFilter} className="field-base">
+            <option value="">Todos los roles</option>
+            <option value="RESIDENT">Residentes</option>
+            <option value="GUARD">Guardias</option>
+          </select>
+          <select name="status" defaultValue={statusFilter} className="field-base">
+            <option value="">Todos los estados</option>
+            <option value="active">Activos</option>
+            <option value="suspended">Suspendidos</option>
+          </select>
+          <button type="submit" className="btn-primary w-full">
+            Aplicar filtros
+          </button>
+        </form>
+
         <div className="space-y-3">
           {users.map((user) => (
             <div key={user.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
@@ -47,6 +111,9 @@ export default async function ResidentialAdminUsersPage() {
                   <p className="text-sm text-slate-600">
                     {user.email} - {user.role === "RESIDENT" ? "Residente" : "Guardia"}
                   </p>
+                  <p className="text-xs font-medium text-slate-700">
+                    Estado: {user.isSuspended ? "Suspendido" : "Activo"}
+                  </p>
                   {user.role === "RESIDENT" ? (
                     <p className="text-xs text-slate-500">
                       Categoria: {residentCategoryLabel(user.residentCategory)}
@@ -55,6 +122,20 @@ export default async function ResidentialAdminUsersPage() {
                   <p className="text-xs text-slate-500">Vivienda: {user.houseNumber || "Sin definir"}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <form action={toggleResidentialUserSuspensionAction}>
+                    <input type="hidden" name="userId" value={user.id} />
+                    <input type="hidden" name="nextStatus" value={user.isSuspended ? "activate" : "suspend"} />
+                    <button
+                      type="submit"
+                      className={
+                        user.isSuspended
+                          ? "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
+                          : "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+                      }
+                    >
+                      {user.isSuspended ? "Activar cuenta" : "Suspender cuenta"}
+                    </button>
+                  </form>
                   <details>
                     <summary className="cursor-pointer rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100">
                       Editar

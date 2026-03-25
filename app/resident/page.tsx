@@ -30,14 +30,41 @@ function validityLabel(validityType: InviteWithImage["validityType"]) {
   return "Valido por 3 dias";
 }
 
+type AllowedValidity = "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE";
+
+function allowedValidityTypesFromResidential(r: {
+  allowResidentQrSingleUse: boolean;
+  allowResidentQrOneDay: boolean;
+  allowResidentQrThreeDays: boolean;
+  allowResidentQrInfinite: boolean;
+}): AllowedValidity[] {
+  const out: AllowedValidity[] = [];
+  if (r.allowResidentQrSingleUse) out.push("SINGLE_USE");
+  if (r.allowResidentQrOneDay) out.push("ONE_DAY");
+  if (r.allowResidentQrThreeDays) out.push("THREE_DAYS");
+  if (r.allowResidentQrInfinite) out.push("INFINITE");
+  return out;
+}
+
 export default async function ResidentPage() {
   const session = await requireRole(["RESIDENT"]);
   const residential = session.residentialId
     ? await prisma.residential.findUnique({
         where: { id: session.residentialId },
-        select: { name: true, supportPhone: true },
+        select: {
+          name: true,
+          supportPhone: true,
+          allowResidentQrSingleUse: true,
+          allowResidentQrOneDay: true,
+          allowResidentQrThreeDays: true,
+          allowResidentQrInfinite: true,
+        },
       })
     : null;
+
+  const allowedValidityTypes = residential
+    ? allowedValidityTypesFromResidential(residential)
+    : (["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE"] as AllowedValidity[]);
 
   const invites = await prisma.qrCode.findMany({
     where: { residentId: session.userId },
@@ -135,7 +162,7 @@ export default async function ResidentPage() {
 
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Crear anuncio de visita</h2>
-        <CreateQrForm />
+        <CreateQrForm allowedValidityTypes={allowedValidityTypes} />
       </Card>
 
       <Card>

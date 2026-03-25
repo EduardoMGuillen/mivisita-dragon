@@ -118,12 +118,56 @@ export function GuardShiftCard({
   const [startSelfieError, setStartSelfieError] = useState<string | null>(null);
   const [markSelfieError, setMarkSelfieError] = useState<string | null>(null);
   const [endSelfieError, setEndSelfieError] = useState<string | null>(null);
+  const [lastCheckpointAlertKey, setLastCheckpointAlertKey] = useState<string | null>(null);
   const [nowTick, setNowTick] = useState(Date.now());
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowTick(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!nextHeartbeatAtIso) {
+      setLastCheckpointAlertKey(null);
+      return;
+    }
+
+    const maybeNotify = () => {
+      if (!hasOpenShift) return;
+      if (typeof window === "undefined" || !("Notification" in window)) return;
+      if (Notification.permission !== "granted") return;
+
+      const checkpointAt = new Date(nextHeartbeatAtIso).getTime();
+      if (Number.isNaN(checkpointAt)) return;
+      if (Date.now() < checkpointAt) return;
+
+      const reminderWindow = Math.floor((Date.now() - checkpointAt) / (15 * 60 * 1000));
+      const alertKey = `${nextHeartbeatAtIso}:${Math.max(0, reminderWindow)}`;
+      if (lastCheckpointAlertKey === alertKey) return;
+
+      const overdueMinutes = Math.floor((Date.now() - checkpointAt) / 60000);
+      const message =
+        overdueMinutes <= 0
+          ? "Ya debes volver a marcar checkpoint de turno."
+          : `Tienes checkpoint vencido desde hace ${overdueMinutes} min. Marca nuevamente tu checkpoint.`;
+
+      try {
+        const notification = new Notification("Control Dragon - Marcaje laboral", {
+          body: message,
+          icon: "/dragonlogo.jpg",
+        });
+        notification.onclick = () => window.focus();
+      } catch {
+        return;
+      }
+
+      setLastCheckpointAlertKey(alertKey);
+    };
+
+    maybeNotify();
+    const timer = window.setInterval(maybeNotify, 60_000);
+    return () => window.clearInterval(timer);
+  }, [hasOpenShift, lastCheckpointAlertKey, nextHeartbeatAtIso]);
 
   const countdownLabel = useMemo(
     () => formatCountdown(nextHeartbeatAtIso),

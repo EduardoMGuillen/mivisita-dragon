@@ -1,37 +1,18 @@
 import { cookies } from "next/headers";
-import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "@/lib/prisma";
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_MAX_AGE_SECONDS,
+  createSessionToken,
+  verifySessionToken,
+  type SessionData,
+  type SessionRole,
+} from "@/lib/session-token";
 
-export const SESSION_COOKIE_NAME = "control_dragon_session";
-
-export type SessionRole = "SUPER_ADMIN" | "RESIDENTIAL_ADMIN" | "RESIDENT" | "GUARD";
-
-export type SessionData = {
-  userId: string;
-  fullName: string;
-  role: SessionRole;
-  residentialId: string | null;
-};
-
-const secret = new TextEncoder().encode(
-  process.env.AUTH_SECRET ?? "change-this-in-production-control-dragon-secret",
-);
-
-export async function createSessionToken(session: SessionData) {
-  return new SignJWT(session)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("7d")
-    .sign(secret);
-}
+export { SESSION_COOKIE_NAME, type SessionData, type SessionRole };
 
 export async function readSessionToken(token: string) {
-  try {
-    const result = await jwtVerify(token, secret);
-    return result.payload as SessionData;
-  } catch {
-    return null;
-  }
+  return verifySessionToken(token);
 }
 
 export async function getSession() {
@@ -39,8 +20,19 @@ export async function getSession() {
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
   if (!token) return null;
-  const session = await readSessionToken(token);
+  const session = await verifySessionToken(token);
   if (!session) return null;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { isSuspended: true },
+    });
+    if (!user || user.isSuspended) return null;
+  } catch {
+    return session;
+  }
+
   if (session.role === "SUPER_ADMIN") return session;
   if (!session.residentialId) return session;
 
@@ -66,7 +58,7 @@ export async function setSessionCookie(session: SessionData) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
 }
 

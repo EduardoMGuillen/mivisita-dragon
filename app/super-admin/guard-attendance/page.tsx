@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
-import { Card, DashboardShell } from "@/app/components/shell";
+import { Card } from "@/app/components/shell";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
 
 function getSingleParam(value: string | string[] | undefined) {
@@ -100,19 +100,15 @@ export default async function GuardAttendancePage({
   const missedHeartbeats = Math.max(0, expectedHeartbeats - totalHeartbeats);
 
   return (
-    <DashboardShell
-      title="Asistencia de guardias"
-      subtitle="Marcaje laboral antifraude con checkpoints cada 2 horas."
-      user="Super Admin"
-    >
+    <>
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">Filtro de asistencia</h2>
           <Link
-            href="/super-admin"
+            href="/super-admin/residenciales"
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            Volver a Super Admin
+            Volver a residenciales
           </Link>
         </div>
         <form className="mt-4 grid gap-2 md:grid-cols-3">
@@ -248,6 +244,6 @@ export default async function GuardAttendancePage({
           {shifts.length === 0 ? <p className="text-sm text-slate-600">No hay turnos para los filtros aplicados.</p> : null}
         </div>
       </Card>
-    </DashboardShell>
+    </>
   );
 }

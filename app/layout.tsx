@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PwaBootstrap } from "@/app/components/pwa-bootstrap";
@@ -60,15 +61,26 @@ export default function RootLayout({
         <div className="flex min-h-screen flex-col">
           <div className="flex-1">{children}</div>
           <footer className="border-t border-white/60 bg-white/70 px-4 py-5 text-center text-sm text-slate-600 backdrop-blur">
-            Powered by{" "}
-            <a
-              href="https://www.nexusglobalsuministros.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-slate-900 transition hover:text-blue-700 hover:underline"
-            >
-              Nexus Global
-            </a>
+            <p>
+              Powered by{" "}
+              <a
+                href="https://www.nexusglobalsuministros.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-slate-900 transition hover:text-blue-700 hover:underline"
+              >
+                Nexus Global
+              </a>
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              <Link href="/politicas-de-privacidad" className="hover:text-slate-800 hover:underline">
+                Politicas de Privacidad
+              </Link>
+              <span className="mx-2">|</span>
+              <Link href="/terminos-de-uso" className="hover:text-slate-800 hover:underline">
+                Terminos de Uso
+              </Link>
+            </p>
           </footer>
         </div>
       </body>
