@@ -149,7 +149,8 @@ export default async function GuardPage() {
       <Card>
         <h2 className="mb-2 text-lg font-semibold text-slate-900">Entrada manual por llamada</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Si el residente anuncia por llamada, crea una entrada manual con residente, visita y duracion.
+          Si el residente anuncia por llamada, registra residente y visita. Se crea un QR de un solo uso con la misma
+          vigencia que las invitaciones del residente; el residente recibe notificacion push si esta suscrito.
         </p>
         <GuardManualEntryForm residents={residents} />
         <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-700">

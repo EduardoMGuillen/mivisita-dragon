@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/authorization";
 import { idPhotoFileToBytes, validateIdPhotoFile } from "@/lib/id-photo-storage";
 import { prisma } from "@/lib/prisma";
+import { calculateValidityWindow } from "@/lib/qr";
 import { notifyUser } from "@/lib/push";
 import {
   enforceGuardShiftForGateOperation,
@@ -22,7 +23,6 @@ const announceDeliverySchema = z.object({
 const createManualVisitSchema = z.object({
   residentId: z.string().min(1, "Debes seleccionar un residente."),
   visitorName: z.string().min(2, "Escribe el nombre de la visita.").max(80, "Nombre demasiado largo."),
-  durationHours: z.coerce.number().int().min(1, "La duracion minima es 1 hora.").max(24, "Maximo 24 horas."),
   hasVehicle: z.coerce.boolean().default(false),
 });
 
@@ -191,7 +191,6 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
   const parsed = createManualVisitSchema.safeParse({
     residentId: formData.get("residentId"),
     visitorName: formData.get("visitorName"),
-    durationHours: formData.get("durationHours"),
     hasVehicle: formData.get("hasVehicle") === "on",
   });
   if (!parsed.success) {
@@ -208,9 +207,8 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
   });
   if (!resident) return "No se encontro el residente seleccionado.";
 
-  const now = new Date();
-  const validUntil = new Date(now.getTime() + parsed.data.durationHours * 60 * 60 * 1000);
   const visitorName = parsed.data.visitorName.trim();
+  const validityWindow = calculateValidityWindow("SINGLE_USE");
 
   await prisma.qrCode.create({
     data: {
@@ -218,25 +216,25 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
       visitorName,
       description:
         `${GUARD_GENERATED_DESCRIPTION_PREFIX} Creado por guardia ${session.fullName}. ` +
-        `Duracion ${parsed.data.durationHours} hora(s).`,
+        "QR de un solo uso (misma regla que invitaciones del residente en la app).",
       hasVehicle: parsed.data.hasVehicle,
       validityType: "SINGLE_USE",
-      validFrom: now,
-      validUntil,
-      maxUses: 1,
+      validFrom: validityWindow.validFrom,
+      validUntil: validityWindow.validUntil,
+      maxUses: validityWindow.maxUses,
       residentialId: session.residentialId,
       residentId: resident.id,
     },
   });
 
   await notifyUser(resident.id, {
-    title: "Control Dragon",
-    body: `Guardia anuncio visita: ${visitorName}. Vigencia: ${parsed.data.durationHours} hora(s).`,
+    title: "Porteria creo un QR por ti",
+    body: `${session.fullName} registro la visita "${visitorName}" a tu nombre. Es de un solo uso; revisa tu lista en la app.`,
     url: "/resident",
   });
 
   revalidatePath("/guard");
-  return `Entrada manual creada para ${visitorName} (residente: ${resident.fullName}).`;
+  return `QR de un solo uso creado para ${visitorName} (residente: ${resident.fullName}). Misma vigencia que una invitacion del residente.`;
 }
 
 export async function acceptAnnouncedVisitAction(_prevState: string | null, formData: FormData) {

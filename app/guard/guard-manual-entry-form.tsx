@@ -25,20 +25,14 @@ export function GuardManualEntryForm({
       <input
         name="visitorName"
         required
-        className="field-base"
+        className="field-base md:col-span-2"
         placeholder="Nombre de la visita"
         maxLength={80}
       />
-      <input
-        name="durationHours"
-        required
-        type="number"
-        min="1"
-        max="24"
-        step="1"
-        className="field-base"
-        placeholder="Duracion (horas)"
-      />
+      <p className="text-xs text-slate-600 md:col-span-2">
+        Se genera un QR de <strong>un solo uso</strong>, con la misma vigencia que si el residente lo crea desde la app
+        (hasta 3 dias para escanear una vez en porteria).
+      </p>
       <label className="flex items-center gap-2 text-sm text-slate-700 md:col-span-2">
         <input type="checkbox" name="hasVehicle" />
         La visita viene en vehiculo (se pedira evidencia de placa al registrar).
