@@ -1,6 +1,6 @@
 # Control Dragon
 
-Control Dragon es una plataforma de control de acceso residencial con arquitectura multi-rol, PWA, escaneo QR en porteria, evidencia de ingreso y reporteria operativa para Dragon Seguridad.
+Control Dragon es una plataforma de control de acceso residencial con arquitectura multi-rol, PWA, escaneo QR en posta de seguridad, evidencia de ingreso y reporteria operativa para Dragon Seguridad.
 
 ## Roles del sistema
 

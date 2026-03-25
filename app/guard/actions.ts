@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/authorization";
 import { idPhotoFileToBytes, validateIdPhotoFile } from "@/lib/id-photo-storage";
 import { prisma } from "@/lib/prisma";
+import { buildGuardPostaDescription, GUARD_POSTA_DESCRIPTION_PREFIX } from "@/lib/guard-posta";
 import { calculateValidityWindow } from "@/lib/qr";
 import { notifyUser } from "@/lib/push";
 import {
@@ -25,8 +26,6 @@ const createManualVisitSchema = z.object({
   visitorName: z.string().min(2, "Escribe el nombre de la visita.").max(80, "Nombre demasiado largo."),
   hasVehicle: z.coerce.boolean().default(false),
 });
-
-const GUARD_GENERATED_DESCRIPTION_PREFIX = "GUARD_GENERATED:";
 
 const shiftGeoSchema = z.object({
   latitude: z.coerce.number().gte(-90).lte(90),
@@ -181,7 +180,8 @@ export async function endGuardShiftAction(_prevState: string | null, formData: F
 
 export async function createManualVisitByGuardAction(_prevState: string | null, formData: FormData) {
   const session = await requireRole(["GUARD"]);
-  if (!session.residentialId) return "Sesion invalida sin residencial asociada.";
+  const residentialId = session.residentialId;
+  if (!residentialId) return "Sesion invalida sin residencial asociada.";
   try {
     await enforceGuardShiftForGateOperation(session.userId);
   } catch (error) {
@@ -200,7 +200,7 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
   const resident = await prisma.user.findFirst({
     where: {
       id: parsed.data.residentId,
-      residentialId: session.residentialId,
+      residentialId,
       role: "RESIDENT",
     },
     select: { id: true, fullName: true },
@@ -210,31 +210,84 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
   const visitorName = parsed.data.visitorName.trim();
   const validityWindow = calculateValidityWindow("SINGLE_USE");
 
-  await prisma.qrCode.create({
-    data: {
-      code: createGuardGeneratedCode(),
-      visitorName,
-      description:
-        `${GUARD_GENERATED_DESCRIPTION_PREFIX} Creado por guardia ${session.fullName}. ` +
-        "QR de un solo uso (misma regla que invitaciones del residente en la app).",
-      hasVehicle: parsed.data.hasVehicle,
-      validityType: "SINGLE_USE",
-      validFrom: validityWindow.validFrom,
-      validUntil: validityWindow.validUntil,
-      maxUses: validityWindow.maxUses,
-      residentialId: session.residentialId,
-      residentId: resident.id,
-    },
-  });
+  const idPhoto = formData.get("idPhoto");
+  if (!(idPhoto instanceof File)) {
+    return "Debes capturar la evidencia de identificacion del visitante.";
+  }
+
+  let platePhotoData: Uint8Array | undefined;
+  let platePhotoMimeType: string | undefined;
+  let platePhotoSize: number | undefined;
+
+  try {
+    validateIdPhotoFile(idPhoto);
+    const idPhotoData = await idPhotoFileToBytes(idPhoto);
+
+    if (parsed.data.hasVehicle) {
+      const platePhoto = formData.get("platePhoto");
+      if (!(platePhoto instanceof File)) {
+        return "Esta visita requiere foto de placa porque viene en vehiculo.";
+      }
+      validateIdPhotoFile(platePhoto);
+      platePhotoData = await idPhotoFileToBytes(platePhoto);
+      platePhotoMimeType = platePhoto.type;
+      platePhotoSize = platePhoto.size;
+    }
+
+    const description = buildGuardPostaDescription(session.userId, session.fullName);
+
+    await prisma.$transaction(async (tx) => {
+      const qr = await tx.qrCode.create({
+        data: {
+          code: createGuardGeneratedCode(),
+          visitorName,
+          description,
+          hasVehicle: parsed.data.hasVehicle,
+          validityType: "SINGLE_USE",
+          validFrom: validityWindow.validFrom,
+          validUntil: validityWindow.validUntil,
+          maxUses: validityWindow.maxUses,
+          residentialId,
+          residentId: resident.id,
+        },
+      });
+
+      await tx.qrCode.update({
+        where: { id: qr.id },
+        data: { usedCount: { increment: 1 } },
+      });
+
+      await tx.qrScan.create({
+        data: {
+          codeId: qr.id,
+          scannerId: session.userId,
+          isValid: true,
+          reason: "Ingreso registrado por Posta de Seguridad al crear anuncio (llamada) con evidencia.",
+          idPhotoData: idPhotoData as unknown as Uint8Array<ArrayBuffer>,
+          idPhotoMimeType: idPhoto.type,
+          idPhotoSize: idPhoto.size,
+          idCapturedAt: new Date(),
+          platePhotoData: platePhotoData
+            ? (platePhotoData as unknown as Uint8Array<ArrayBuffer>)
+            : null,
+          platePhotoMimeType,
+          platePhotoSize,
+        },
+      });
+    });
+  } catch (error) {
+    return error instanceof Error ? error.message : "No se pudo registrar la entrada con evidencia.";
+  }
 
   await notifyUser(resident.id, {
-    title: "Porteria creo un QR por ti",
-    body: `${session.fullName} registro la visita "${visitorName}" a tu nombre. Es de un solo uso; revisa tu lista en la app.`,
+    title: "Posta de Seguridad creo un QR por ti",
+    body: `${session.fullName} registro la entrada de "${visitorName}" a tu nombre (ingreso ya marcado en posta). Revisa tu app.`,
     url: "/resident",
   });
 
   revalidatePath("/guard");
-  return `QR de un solo uso creado para ${visitorName} (residente: ${resident.fullName}). Misma vigencia que una invitacion del residente.`;
+  revalidatePath("/resident");
+  return `Entrada registrada y QR creado para ${visitorName} (residente: ${resident.fullName}). El residente vera la etiqueta de Posta de Seguridad.`;
 }
 
 export async function acceptAnnouncedVisitAction(_prevState: string | null, formData: FormData) {
@@ -327,8 +380,8 @@ export async function acceptAnnouncedVisitAction(_prevState: string | null, form
   }
 
   await notifyUser(qr.resident.id, {
-    title: "Control Dragon",
-    body: `Tu visita (${qr.visitorName}) fue registrada en caseta.`,
+    title: "Posta de Seguridad",
+    body: `Tu visita (${qr.visitorName}) fue registrada en la posta.`,
     url: "/resident",
   });
 
@@ -382,6 +435,72 @@ export async function announceDeliveryAtGateAction(_prevState: string | null, fo
   revalidatePath("/residential-admin");
   revalidatePath("/super-admin");
   return `Notificacion enviada a ${resident.fullName}.`;
+}
+
+export async function markPostaVisitExitAction(
+  _prevState: string | null,
+  formData: FormData,
+): Promise<string | null> {
+  const session = await requireRole(["GUARD"]);
+  if (!session.residentialId) return "Sesion invalida sin residencial asociada.";
+  try {
+    await enforceGuardShiftForGateOperation(session.userId);
+  } catch (error) {
+    return error instanceof Error ? error.message : "Debes tener turno laboral activo.";
+  }
+
+  const scanId = String(formData.get("scanId") ?? "").trim();
+  if (!scanId) return "Identificador de registro invalido.";
+
+  const exitNoteRaw = String(formData.get("exitNote") ?? "").trim();
+  const exitNote =
+    exitNoteRaw.length > 0
+      ? exitNoteRaw.slice(0, 200)
+      : "Salida registrada manualmente por Posta de Seguridad.";
+
+  const scan = await prisma.qrScan.findFirst({
+    where: {
+      id: scanId,
+      isValid: true,
+      exitedAt: null,
+      scannerId: session.userId,
+      code: {
+        residentialId: session.residentialId,
+        description: { startsWith: GUARD_POSTA_DESCRIPTION_PREFIX },
+      },
+    },
+    include: {
+      code: {
+        select: {
+          visitorName: true,
+          residentId: true,
+          resident: { select: { id: true, fullName: true } },
+        },
+      },
+    },
+  });
+
+  if (!scan) {
+    return "No se encontro el registro o no puedes marcar salida (solo el oficial que registro la entrada).";
+  }
+
+  await prisma.qrScan.update({
+    where: { id: scan.id },
+    data: {
+      exitedAt: new Date(),
+      exitNote,
+    },
+  });
+
+  await notifyUser(scan.code.resident.id, {
+    title: "Posta de Seguridad: salida registrada",
+    body: `Se registro la salida de la visita ${scan.code.visitorName}.`,
+    url: "/resident",
+  });
+
+  revalidatePath("/guard");
+  revalidatePath("/resident");
+  return `Salida registrada para ${scan.code.visitorName}.`;
 }
 
 export async function getGuardShiftPanelState(guardId: string) {

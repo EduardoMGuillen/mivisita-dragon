@@ -4,12 +4,14 @@ import { Card, DashboardShell } from "@/app/components/shell";
 import { GuardQrScanner } from "@/app/guard/qr-scanner";
 import { GuardManualAcceptForm } from "@/app/guard/guard-manual-accept-form";
 import { GuardManualEntryForm } from "@/app/guard/guard-manual-entry-form";
+import { GuardPostaExitForm } from "@/app/guard/guard-posta-exit-form";
 import { GuardShiftCard } from "@/app/guard/guard-shift-card";
 import { GuardPushSubscriptionCard } from "@/app/guard/push-subscription";
 import { GuardAutoRefresh } from "@/app/guard/guard-auto-refresh";
 import { GuardDeliveryAnnouncementForm } from "@/app/guard/delivery-announcement-form";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
 import { getNextHeartbeatAt, getOpenGuardShift } from "@/lib/guard-shift";
+import { GUARD_POSTA_DESCRIPTION_PREFIX } from "@/lib/guard-posta";
 
 function tegucigalpaTodayRange(now = new Date()) {
   const tegucigalpaOffsetHours = 6;
@@ -52,7 +54,7 @@ export default async function GuardPage() {
     where: {
       residentialId: session.residentialId,
       description: {
-        startsWith: "GUARD_GENERATED:",
+        startsWith: GUARD_POSTA_DESCRIPTION_PREFIX,
       },
     },
     include: {
@@ -61,11 +63,34 @@ export default async function GuardPage() {
         where: { isValid: true },
         orderBy: { scannedAt: "desc" },
         take: 1,
-        select: { scannedAt: true },
+        select: { id: true, scannedAt: true, exitedAt: true, scannerId: true },
       },
     },
     orderBy: { createdAt: "desc" },
     take: 20,
+  });
+  const postaPendingExitsForGuard = await prisma.qrScan.findMany({
+    where: {
+      isValid: true,
+      exitedAt: null,
+      scannerId: session.userId,
+      code: {
+        residentialId: session.residentialId,
+        description: { startsWith: GUARD_POSTA_DESCRIPTION_PREFIX },
+      },
+    },
+    orderBy: { scannedAt: "desc" },
+    take: 25,
+    select: {
+      id: true,
+      scannedAt: true,
+      code: {
+        select: {
+          visitorName: true,
+          resident: { select: { fullName: true } },
+        },
+      },
+    },
   });
   const recentRegisteredAnnouncements = await prisma.qrScan.findMany({
     where: {
@@ -147,18 +172,45 @@ export default async function GuardPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-2 text-lg font-semibold text-slate-900">Entrada manual por llamada</h2>
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">Entrada manual por llamada (Posta)</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Si el residente anuncia por llamada, registra residente y visita. Se crea un QR de un solo uso con la misma
-          vigencia que las invitaciones del residente; el residente recibe notificacion push si esta suscrito.
+          Si el residente anuncia por llamada, registra residente, visita y evidencias. La entrada queda marcada al
+          guardar; el residente ve el codigo con etiqueta de Posta de Seguridad y recibe notificacion push si esta
+          suscrito. Solo quien registro la entrada puede marcar salida manual mas abajo.
         </p>
         <GuardManualEntryForm residents={residents} />
+
+        <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-700">
+          Salidas pendientes (tus registros de Posta)
+        </h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Visitas creadas por ti con entrada ya registrada y sin salida. Usa el mismo turno activo y checkpoints al
+          dia.
+        </p>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {postaPendingExitsForGuard.map((row) => (
+            <div key={row.id} className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+              <p className="font-semibold text-slate-900">{row.code.visitorName}</p>
+              <p className="text-sm text-slate-600">Residente: {row.code.resident.fullName}</p>
+              <p className="text-xs text-slate-500">
+                Entrada: {formatDateTimeTegucigalpa(row.scannedAt)} — salida pendiente
+              </p>
+              <GuardPostaExitForm scanId={row.id} visitorName={row.code.visitorName} />
+            </div>
+          ))}
+          {postaPendingExitsForGuard.length === 0 ? (
+            <p className="text-sm text-slate-600">No tienes salidas pendientes de registros propios de Posta.</p>
+          ) : null}
+        </div>
+
         <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-700">
-          Entradas generadas por guardia
+          Entradas generadas por Posta (recientes)
         </h3>
         <div className="mt-2 grid gap-3 md:grid-cols-2">
           {guardGeneratedEntries.map((entry) => {
-            const wasAccepted = entry.scans.length > 0;
+            const scan = entry.scans[0];
+            const wasAccepted = Boolean(scan);
+            const exitDone = Boolean(scan?.exitedAt);
             return (
               <div key={entry.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
                 <div className="flex items-center justify-between gap-2">
@@ -166,11 +218,13 @@ export default async function GuardPage() {
                   <span
                     className={
                       wasAccepted
-                        ? "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+                        ? exitDone
+                          ? "rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700"
+                          : "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
                         : "rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700"
                     }
                   >
-                    {wasAccepted ? "Registrada" : "Pendiente"}
+                    {!wasAccepted ? "Pendiente evidencia" : exitDone ? "Salida registrada" : "En sitio (sin salida)"}
                   </span>
                 </div>
                 <p className="text-sm text-slate-600">Residente: {entry.resident.fullName}</p>
@@ -179,10 +233,15 @@ export default async function GuardPage() {
                 </p>
                 <p className="text-xs text-slate-500">Creada: {formatDateTimeTegucigalpa(entry.createdAt)}</p>
                 <p className="text-xs text-slate-500">Expira: {formatDateTimeTegucigalpa(entry.validUntil)}</p>
-                {wasAccepted ? (
-                  <p className="mt-1 text-xs text-slate-600">
-                    Registrada por guardia: {formatDateTimeTegucigalpa(entry.scans[0].scannedAt)}
-                  </p>
+                {scan ? (
+                  <>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Entrada: {formatDateTimeTegucigalpa(scan.scannedAt)}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      Salida: {scan.exitedAt ? formatDateTimeTegucigalpa(scan.exitedAt) : "Pendiente"}
+                    </p>
+                  </>
                 ) : null}
               </div>
             );

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     "residencial",
     "visitas",
     "qr",
-    "porteria",
+    "posta de seguridad",
     "seguridad residencial",
     "control dragon",
     "reservas de zonas",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     url: APP_URL,
     title: "Control Dragon | Seguridad y control de visitas",
     description:
-      "Gestiona visitas con QR, reservas de zonas, valida ingresos en porteria y mantente informado al instante.",
+      "Gestiona visitas con QR, reservas de zonas, valida ingresos en la posta de seguridad y mantente informado al instante.",
     siteName: "Control Dragon",
     images: [
       {
@@ -122,7 +122,7 @@ export default async function Home() {
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
               <p className="font-semibold text-slate-900">Acceso con QR seguro</p>
               <p className="mt-1 text-sm text-slate-600">
-                Vigencia por tiempo o uso, validacion inmediata en porteria.
+                Vigencia por tiempo o uso, validacion inmediata en la posta de seguridad.
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">

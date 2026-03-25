@@ -30,15 +30,36 @@ export function GuardManualEntryForm({
         maxLength={80}
       />
       <p className="text-xs text-slate-600 md:col-span-2">
-        Se genera un QR de <strong>un solo uso</strong>, con la misma vigencia que si el residente lo crea desde la app
-        (hasta 3 dias para escanear una vez en porteria).
+        Se crea un QR de <strong>un solo uso</strong> a nombre del residente (misma ventana de vigencia que en la app).
+        La <strong>entrada queda registrada al enviar</strong> con la evidencia de identificacion (y placa si aplica).
       </p>
       <label className="flex items-center gap-2 text-sm text-slate-700 md:col-span-2">
         <input type="checkbox" name="hasVehicle" />
-        La visita viene en vehiculo (se pedira evidencia de placa al registrar).
+        La visita viene en vehiculo (evidencia de placa obligatoria).
+      </label>
+      <label className="grid gap-1 text-xs text-slate-600 md:col-span-2">
+        Evidencia de identificacion del visitante (obligatoria)
+        <input
+          type="file"
+          name="idPhoto"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          required
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+        />
+      </label>
+      <label className="grid gap-1 text-xs text-slate-600 md:col-span-2">
+        Evidencia de placa (obligatoria si marcaste vehiculo)
+        <input
+          type="file"
+          name="platePhoto"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700"
+        />
       </label>
       <button type="submit" disabled={isPending} className="btn-primary disabled:opacity-60 md:w-max">
-        {isPending ? "Creando entrada..." : "Crear entrada manual"}
+        {isPending ? "Registrando entrada..." : "Registrar entrada (Posta)"}
       </button>
       {message ? <p className="text-sm text-slate-700 md:col-span-2">{message}</p> : null}
     </form>

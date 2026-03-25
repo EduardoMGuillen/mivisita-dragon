@@ -9,6 +9,7 @@ import { PushSubscriptionCard } from "@/app/resident/push-subscription";
 import { deleteInviteQrAction, cancelZoneReservationAction } from "@/app/resident/actions";
 import { QrShareActions } from "@/app/resident/qr-share-actions";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
+import { isGuardPostaQr } from "@/lib/guard-posta";
 
 type InviteWithImage = {
   id: string;
@@ -21,6 +22,9 @@ type InviteWithImage = {
   usedCount: number;
   maxUses: number;
   image: string;
+  isPosta: boolean;
+  showResidentDescription: boolean;
+  latestScan: { scannedAt: Date; exitedAt: Date | null } | null;
 };
 
 function validityLabel(validityType: InviteWithImage["validityType"]) {
@@ -70,6 +74,14 @@ export default async function ResidentPage() {
     where: { residentId: session.userId },
     orderBy: [{ validUntil: "asc" }, { createdAt: "desc" }],
     take: 40,
+    include: {
+      scans: {
+        where: { isValid: true },
+        orderBy: { scannedAt: "desc" },
+        take: 1,
+        select: { scannedAt: true, exitedAt: true },
+      },
+    },
   });
   const [zones, reservations, zoneReservations, zoneBlocks, latestAnnouncementRecipient] = await Promise.all([
     prisma.zone.findMany({
@@ -128,26 +140,45 @@ export default async function ResidentPage() {
   const latestAnnouncement = latestAnnouncementRecipient?.announcement ?? null;
 
   const invitesWithImage: InviteWithImage[] = await Promise.all(
-    invites.map(async (invite) => ({
-      id: invite.id,
-      code: invite.code,
-      visitorName: invite.visitorName,
-      validityType: invite.validityType,
-      description: invite.description,
-      hasVehicle: invite.hasVehicle,
-      validUntil: invite.validUntil,
-      usedCount: invite.usedCount,
-      maxUses: invite.maxUses,
-      image: await QRCode.toDataURL(`MP:${invite.code}`),
-    })),
+    invites.map(async (invite) => {
+      const isPosta = isGuardPostaQr(invite.description);
+      const latestScan = invite.scans[0] ?? null;
+      return {
+        id: invite.id,
+        code: invite.code,
+        visitorName: invite.visitorName,
+        validityType: invite.validityType,
+        description: invite.description,
+        hasVehicle: invite.hasVehicle,
+        validUntil: invite.validUntil,
+        usedCount: invite.usedCount,
+        maxUses: invite.maxUses,
+        image: await QRCode.toDataURL(`MP:${invite.code}`),
+        isPosta,
+        showResidentDescription: Boolean(invite.description && !isPosta),
+        latestScan,
+      };
+    }),
   );
 
   const now = new Date();
+  const postaVisitsOpen = invitesWithImage.filter(
+    (invite) =>
+      invite.isPosta &&
+      invite.validUntil >= now &&
+      invite.latestScan != null &&
+      invite.latestScan.exitedAt == null,
+  );
   const activeInvites = invitesWithImage.filter(
-    (invite) => invite.validUntil >= now && invite.usedCount < invite.maxUses,
+    (invite) =>
+      invite.validUntil >= now &&
+      invite.usedCount < invite.maxUses &&
+      !postaVisitsOpen.some((p) => p.id === invite.id),
   );
   const expiredInvites = invitesWithImage.filter(
-    (invite) => invite.validUntil < now || invite.usedCount >= invite.maxUses,
+    (invite) =>
+      !postaVisitsOpen.some((p) => p.id === invite.id) &&
+      !activeInvites.some((a) => a.id === invite.id),
   );
   const supportPhoneDigits = (residential?.supportPhone ?? "").replaceAll(/\D+/g, "");
   const supportWhatsappUrl = supportPhoneDigits ? `https://wa.me/${supportPhoneDigits}` : null;
@@ -215,10 +246,56 @@ export default async function ResidentPage() {
       </Card>
 
       <Card>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Visita en curso (Posta de Seguridad)</h2>
+        <p className="mb-3 text-sm text-slate-600">
+          Entradas registradas por la posta a tu nombre con ingreso ya marcado. Salida pendiente hasta que el oficial la
+          registre.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {postaVisitsOpen.map((invite) => (
+            <article
+              key={invite.id}
+              className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 ring-1 ring-amber-100"
+            >
+              <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                Posta de Seguridad
+              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={invite.image}
+                alt={`QR de ${invite.visitorName}`}
+                className="mx-auto mt-2 h-40 w-40 rounded-lg bg-white p-2 shadow-sm"
+              />
+              <p className="mt-3 text-sm font-semibold text-slate-900">{invite.visitorName}</p>
+              <p className="text-xs text-slate-600">{validityLabel(invite.validityType)}</p>
+              <p className="text-xs font-medium text-amber-900">
+                Entrada:{" "}
+                {invite.latestScan ? formatDateTimeTegucigalpa(invite.latestScan.scannedAt) : "—"} · Salida pendiente
+              </p>
+              <p className="text-xs text-slate-500">
+                Tipo de acceso: {invite.hasVehicle ? "Vehiculo" : "Acceso peatonal"}
+              </p>
+              <p className="text-xs text-slate-500">
+                Referencia codigo: <span className="break-all font-mono">MP:{invite.code}</span>
+              </p>
+            </article>
+          ))}
+          {postaVisitsOpen.length === 0 ? (
+            <p className="text-sm text-slate-600">No tienes visitas en curso registradas por la posta.</p>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">QRs activos</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {activeInvites.map((invite) => (
             <article key={invite.id} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+              {invite.isPosta ? (
+                <span className="mb-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                  Posta de Seguridad
+                </span>
+              ) : null}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={invite.image}
@@ -227,7 +304,7 @@ export default async function ResidentPage() {
               />
               <p className="mt-3 text-sm font-semibold text-slate-900">{invite.visitorName}</p>
               <p className="text-xs text-slate-600">{validityLabel(invite.validityType)}</p>
-              {invite.description ? (
+              {invite.showResidentDescription && invite.description ? (
                 <p className="text-xs text-slate-500">Descripcion: {invite.description}</p>
               ) : null}
               <p className="text-xs text-slate-500">
@@ -251,12 +328,14 @@ export default async function ResidentPage() {
                 residentialName={residential?.name ?? "Residencial"}
                 residentName={session.fullName}
               />
-              <form action={deleteInviteQrAction} className="mt-2">
-                <input type="hidden" name="qrId" value={invite.id} />
-                <button className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100">
-                  Eliminar QR
-                </button>
-              </form>
+              {!invite.isPosta ? (
+                <form action={deleteInviteQrAction} className="mt-2">
+                  <input type="hidden" name="qrId" value={invite.id} />
+                  <button className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100">
+                    Eliminar QR
+                  </button>
+                </form>
+              ) : null}
             </article>
           ))}
           {activeInvites.length === 0 ? (
@@ -276,6 +355,11 @@ export default async function ResidentPage() {
                 key={invite.id}
                 className="rounded-xl border border-slate-200 bg-slate-100/80 p-4 opacity-90"
               >
+                {invite.isPosta ? (
+                  <span className="mb-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                    Posta de Seguridad
+                  </span>
+                ) : null}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={invite.image}
@@ -284,7 +368,15 @@ export default async function ResidentPage() {
                 />
                 <p className="mt-3 text-sm font-semibold text-slate-900">{invite.visitorName}</p>
                 <p className="text-xs text-slate-600">{validityLabel(invite.validityType)}</p>
-                {invite.description ? (
+                {invite.isPosta && invite.latestScan ? (
+                  <p className="text-xs text-slate-600">
+                    Entrada: {formatDateTimeTegucigalpa(invite.latestScan.scannedAt)}
+                    {invite.latestScan.exitedAt
+                      ? ` · Salida: ${formatDateTimeTegucigalpa(invite.latestScan.exitedAt)}`
+                      : " · Salida pendiente"}
+                  </p>
+                ) : null}
+                {invite.showResidentDescription && invite.description ? (
                   <p className="text-xs text-slate-500">Descripcion: {invite.description}</p>
                 ) : null}
                 <p className="text-xs text-slate-500">
