@@ -41,6 +41,18 @@ const createZoneSchema = z.object({
   oneReservationPerDay: z.enum(["on"]).optional(),
 });
 
+const updateZoneDetailsSchema = z.object({
+  zoneId: z.string().min(1),
+  name: z.string().min(2, "Nombre de zona invalido.").max(60, "Nombre demasiado largo."),
+  description: z.string().max(180, "Descripcion demasiado larga.").optional(),
+  maxHoursPerReservation: z.coerce.number().int().min(1, "El maximo debe ser al menos 1 hora.").max(72),
+});
+
+const toggleZoneActiveSchema = z.object({
+  zoneId: z.string().min(1),
+  nextStatus: z.enum(["activate", "deactivate"]),
+});
+
 const blockZoneSchema = z.object({
   zoneId: z.string().min(1),
   startsAt: z.string().min(1),
@@ -323,6 +335,69 @@ export async function updateZoneScheduleAction(formData: FormData) {
       scheduleEndHour: parsed.data.scheduleEndHour,
       oneReservationPerDay: parsed.data.oneReservationPerDay === "on",
     },
+  });
+
+  revalidatePath("/residential-admin/zonas-reservas");
+  revalidatePath("/resident");
+}
+
+export async function updateZoneDetailsAction(formData: FormData) {
+  const session = await requireRole(["RESIDENTIAL_ADMIN"]);
+  if (!session.residentialId) return;
+
+  const parsed = updateZoneDetailsSchema.safeParse({
+    zoneId: formData.get("zoneId"),
+    name: formData.get("name"),
+    description: formData.get("description") || undefined,
+    maxHoursPerReservation: formData.get("maxHoursPerReservation"),
+  });
+  if (!parsed.success) return;
+
+  const zone = await prisma.zone.findFirst({
+    where: { id: parsed.data.zoneId, residentialId: session.residentialId },
+    select: { id: true, name: true },
+  });
+  if (!zone) return;
+
+  const nextName = parsed.data.name.trim();
+  const existingByName = await prisma.zone.findFirst({
+    where: {
+      residentialId: session.residentialId,
+      name: nextName,
+      NOT: { id: zone.id },
+    },
+    select: { id: true },
+  });
+  if (existingByName) return;
+
+  await prisma.zone.update({
+    where: { id: zone.id },
+    data: {
+      name: nextName,
+      description: parsed.data.description?.trim() || null,
+      maxHoursPerReservation: parsed.data.maxHoursPerReservation,
+    },
+  });
+
+  revalidatePath("/residential-admin/zonas-reservas");
+  revalidatePath("/resident");
+  return;
+}
+
+export async function toggleZoneActiveAction(formData: FormData) {
+  const session = await requireRole(["RESIDENTIAL_ADMIN"]);
+  if (!session.residentialId) return;
+
+  const parsed = toggleZoneActiveSchema.safeParse({
+    zoneId: formData.get("zoneId"),
+    nextStatus: formData.get("nextStatus"),
+  });
+  if (!parsed.success) return;
+
+  const shouldActivate = parsed.data.nextStatus === "activate";
+  await prisma.zone.updateMany({
+    where: { id: parsed.data.zoneId, residentialId: session.residentialId },
+    data: { isActive: shouldActivate },
   });
 
   revalidatePath("/residential-admin/zonas-reservas");

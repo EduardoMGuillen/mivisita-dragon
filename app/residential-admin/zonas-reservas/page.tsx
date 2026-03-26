@@ -3,6 +3,8 @@ import { CreateZoneForm } from "@/app/residential-admin/create-zone-form";
 import { CreateZoneBlockForm } from "@/app/residential-admin/create-zone-block-form";
 import {
   cancelZoneReservationByAdminAction,
+  toggleZoneActiveAction,
+  updateZoneDetailsAction,
   updateZoneScheduleAction,
 } from "@/app/residential-admin/actions";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
@@ -108,6 +110,59 @@ export default async function ResidentialAdminZonesPage({
                 Limite diario: {zone.oneReservationPerDay ? "1 reserva por dia" : "Multiples reservas por dia"}
               </p>
               {zone.description ? <p className="text-xs text-slate-500">{zone.description}</p> : null}
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <form action={toggleZoneActiveAction}>
+                  <input type="hidden" name="zoneId" value={zone.id} />
+                  <input type="hidden" name="nextStatus" value={zone.isActive ? "deactivate" : "activate"} />
+                  <button
+                    className={
+                      zone.isActive
+                        ? "rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                        : "rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                    }
+                  >
+                    {zone.isActive ? "Desactivar zona" : "Activar zona"}
+                  </button>
+                </form>
+
+                <details className="w-full">
+                  <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                    Editar zona (nombre/descripcion/max)
+                  </summary>
+                  <form action={updateZoneDetailsAction} className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <input type="hidden" name="zoneId" value={zone.id} />
+                    <input
+                      name="name"
+                      defaultValue={zone.name}
+                      className="field-base sm:col-span-2"
+                      placeholder="Nombre de zona"
+                      required
+                      maxLength={60}
+                    />
+                    <input
+                      name="maxHoursPerReservation"
+                      type="number"
+                      min={1}
+                      max={72}
+                      defaultValue={zone.maxHoursPerReservation}
+                      className="field-base"
+                      required
+                    />
+                    <input
+                      name="description"
+                      defaultValue={zone.description ?? ""}
+                      className="field-base"
+                      placeholder="Descripcion (opcional)"
+                      maxLength={180}
+                    />
+                    <button className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 sm:col-span-2 sm:w-max">
+                      Guardar cambios de zona
+                    </button>
+                  </form>
+                </details>
+              </div>
+
               <form action={updateZoneScheduleAction} className="mt-2 grid gap-2 sm:grid-cols-2">
                 <input type="hidden" name="zoneId" value={zone.id} />
                 <input
