@@ -1,6 +1,7 @@
 import { Card } from "@/app/components/shell";
 import { CreateZoneForm } from "@/app/residential-admin/create-zone-form";
 import { CreateZoneBlockForm } from "@/app/residential-admin/create-zone-block-form";
+import { PendingSubmitButton } from "@/app/components/pending-submit-button";
 import {
   cancelZoneReservationByAdminAction,
   toggleZoneActiveAction,
@@ -115,7 +116,8 @@ export default async function ResidentialAdminZonesPage({
                 <form action={toggleZoneActiveAction}>
                   <input type="hidden" name="zoneId" value={zone.id} />
                   <input type="hidden" name="nextStatus" value={zone.isActive ? "deactivate" : "activate"} />
-                  <button
+                  <PendingSubmitButton
+                    pendingText={zone.isActive ? "Desactivando..." : "Activando..."}
                     className={
                       zone.isActive
                         ? "rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
@@ -123,7 +125,7 @@ export default async function ResidentialAdminZonesPage({
                     }
                   >
                     {zone.isActive ? "Desactivar zona" : "Activar zona"}
-                  </button>
+                  </PendingSubmitButton>
                 </form>
 
                 <details className="w-full">
@@ -156,9 +158,12 @@ export default async function ResidentialAdminZonesPage({
                       placeholder="Descripcion (opcional)"
                       maxLength={180}
                     />
-                    <button className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 sm:col-span-2 sm:w-max">
+                    <PendingSubmitButton
+                      pendingText="Guardando..."
+                      className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 sm:col-span-2 sm:w-max"
+                    >
                       Guardar cambios de zona
-                    </button>
+                    </PendingSubmitButton>
                   </form>
                 </details>
               </div>
@@ -192,9 +197,12 @@ export default async function ResidentialAdminZonesPage({
                   />
                   Activar 1 reserva por dia
                 </label>
-                <button className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 sm:col-span-2 sm:w-max">
+                <PendingSubmitButton
+                  pendingText="Guardando..."
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:opacity-60 sm:col-span-2 sm:w-max"
+                >
                   Guardar horario
-                </button>
+                </PendingSubmitButton>
               </form>
             </div>
           ))}
@@ -237,9 +245,12 @@ export default async function ResidentialAdminZonesPage({
                 {reservation.status === "APPROVED" ? (
                   <form action={cancelZoneReservationByAdminAction} className="mt-2">
                     <input type="hidden" name="reservationId" value={reservation.id} />
-                    <button className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
+                    <PendingSubmitButton
+                      pendingText="Cancelando..."
+                      className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                    >
                       Cancelar reserva (admin)
-                    </button>
+                    </PendingSubmitButton>
                   </form>
                 ) : null}
               </div>
