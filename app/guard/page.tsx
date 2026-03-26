@@ -10,7 +10,11 @@ import { GuardPushSubscriptionCard } from "@/app/guard/push-subscription";
 import { GuardAutoRefresh } from "@/app/guard/guard-auto-refresh";
 import { GuardDeliveryAnnouncementForm } from "@/app/guard/delivery-announcement-form";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
-import { getNextHeartbeatAt, getOpenGuardShift } from "@/lib/guard-shift";
+import {
+  getNextHeartbeatAt,
+  getOpenGuardShift,
+  GUARD_SHIFT_ENFORCEMENT_ENABLED,
+} from "@/lib/guard-shift";
 import { GUARD_POSTA_DESCRIPTION_PREFIX } from "@/lib/guard-posta";
 
 function tegucigalpaTodayRange(now = new Date()) {
@@ -126,10 +130,16 @@ export default async function GuardPage() {
     take: 80,
   });
   const pendingInvites = activeInvites.filter((invite) => invite.scans.length === 0);
-  const openShift = await getOpenGuardShift(session.userId);
-  const nextHeartbeatAt = openShift ? getNextHeartbeatAt(openShift) : null;
+  const openShift = GUARD_SHIFT_ENFORCEMENT_ENABLED
+    ? await getOpenGuardShift(session.userId)
+    : null;
+  const nextHeartbeatAt =
+    GUARD_SHIFT_ENFORCEMENT_ENABLED && openShift ? getNextHeartbeatAt(openShift) : null;
   const now = new Date();
-  const heartbeatOverdue = nextHeartbeatAt ? now.getTime() > nextHeartbeatAt.getTime() : false;
+  const heartbeatOverdue =
+    GUARD_SHIFT_ENFORCEMENT_ENABLED && nextHeartbeatAt
+      ? now.getTime() > nextHeartbeatAt.getTime()
+      : false;
   const residents = await prisma.user.findMany({
     where: {
       residentialId: session.residentialId,
@@ -147,17 +157,19 @@ export default async function GuardPage() {
       user={session.fullName}
     >
       <GuardAutoRefresh />
-      <Card>
-        <h2 className="mb-2 text-lg font-semibold text-slate-900">Marcaje laboral de guardia</h2>
-        <p className="mb-4 text-sm text-slate-600">
-          Debes iniciar turno y registrar checkpoint cada 2 horas con selfie y geolocalizacion.
-        </p>
-        <GuardShiftCard
-          hasOpenShift={Boolean(openShift)}
-          nextHeartbeatAtIso={nextHeartbeatAt ? nextHeartbeatAt.toISOString() : null}
-          heartbeatOverdue={heartbeatOverdue}
-        />
-      </Card>
+      {GUARD_SHIFT_ENFORCEMENT_ENABLED ? (
+        <Card>
+          <h2 className="mb-2 text-lg font-semibold text-slate-900">Marcaje laboral de guardia</h2>
+          <p className="mb-4 text-sm text-slate-600">
+            Debes iniciar turno y registrar checkpoint cada 2 horas con selfie y geolocalizacion.
+          </p>
+          <GuardShiftCard
+            hasOpenShift={Boolean(openShift)}
+            nextHeartbeatAtIso={nextHeartbeatAt ? nextHeartbeatAt.toISOString() : null}
+            heartbeatOverdue={heartbeatOverdue}
+          />
+        </Card>
+      ) : null}
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Escanear QR</h2>
         <GuardQrScanner />
@@ -184,8 +196,10 @@ export default async function GuardPage() {
           Salidas pendientes (tus registros de Posta)
         </h3>
         <p className="mt-1 text-xs text-slate-500">
-          Visitas creadas por ti con entrada ya registrada y sin salida. Usa el mismo turno activo y checkpoints al
-          dia.
+          Visitas creadas por ti con entrada ya registrada y sin salida.
+          {GUARD_SHIFT_ENFORCEMENT_ENABLED
+            ? " Requiere turno activo y checkpoints al dia."
+            : ""}
         </p>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {postaPendingExitsForGuard.map((row) => (

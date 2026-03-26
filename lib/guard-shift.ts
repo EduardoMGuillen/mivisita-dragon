@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { haversineDistanceMeters } from "@/lib/geo";
 
+/**
+ * Si es false, no se exige turno abierto ni checkpoints para escaneos, entradas manuales ni salidas Posta.
+ * Pon en true para volver a activar el control anti-bypass.
+ */
+export const GUARD_SHIFT_ENFORCEMENT_ENABLED = false;
+
 export const GUARD_SHIFT_HEARTBEAT_INTERVAL_MS = 2 * 60 * 60 * 1000;
 
 export type GeoPoint = {
@@ -97,6 +103,7 @@ export async function validateGeoAgainstResidential(
 }
 
 export async function enforceGuardShiftForGateOperation(guardId: string) {
+  if (!GUARD_SHIFT_ENFORCEMENT_ENABLED) return;
   const openShift = await getOpenGuardShift(guardId);
   if (!openShift) {
     throw new Error("Debes iniciar tu turno laboral antes de operar ingresos o salidas.");
