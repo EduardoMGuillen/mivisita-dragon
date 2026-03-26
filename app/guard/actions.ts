@@ -25,6 +25,8 @@ const createManualVisitSchema = z.object({
   residentId: z.string().min(1, "Debes seleccionar un residente."),
   visitorName: z.string().min(2, "Escribe el nombre de la visita.").max(80, "Nombre demasiado largo."),
   hasVehicle: z.coerce.boolean().default(false),
+  vehicleType: z.enum(["CARRO", "MOTO", "MICROBUS", "CAMION", "TAXI"]).optional(),
+  vehicleCompanionsCount: z.coerce.number().int().min(0).max(20).optional(),
 });
 
 const shiftGeoSchema = z.object({
@@ -192,6 +194,8 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
     residentId: formData.get("residentId"),
     visitorName: formData.get("visitorName"),
     hasVehicle: formData.get("hasVehicle") === "on",
+    vehicleType: formData.get("vehicleType") || undefined,
+    vehicleCompanionsCount: formData.get("vehicleCompanionsCount") || undefined,
   });
   if (!parsed.success) {
     return parsed.error.issues[0]?.message ?? "Datos invalidos.";
@@ -209,6 +213,44 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
 
   const visitorName = parsed.data.visitorName.trim();
   const validityWindow = calculateValidityWindow("SINGLE_USE");
+
+  const residentialSettings = await prisma.residential.findUnique({
+    where: { id: residentialId },
+    select: {
+      enableResidentQrVehicleType: true,
+      enableResidentQrVehicleCompanions: true,
+    },
+  });
+  if (!residentialSettings) return "Residencial no encontrada.";
+
+  const hasVehicle = parsed.data.hasVehicle;
+  const vehicleType =
+    residentialSettings.enableResidentQrVehicleType && hasVehicle ? parsed.data.vehicleType ?? null : null;
+  const vehicleCompanionsCount =
+    residentialSettings.enableResidentQrVehicleCompanions && hasVehicle
+      ? (parsed.data.vehicleCompanionsCount ?? null)
+      : null;
+
+  if (residentialSettings.enableResidentQrVehicleCompanions && hasVehicle) {
+    if (!residentialSettings.enableResidentQrVehicleType) {
+      return "La residencial debe habilitar tipo de vehiculo para usar acompanantes.";
+    }
+    if (!vehicleType) return "Debes seleccionar tipo de vehiculo.";
+    if (vehicleCompanionsCount == null || Number.isNaN(vehicleCompanionsCount)) {
+      return "Debes indicar cantidad de acompanantes.";
+    }
+    const maxByType: Record<string, number> = {
+      CARRO: 6,
+      MOTO: 1,
+      MICROBUS: 14,
+      CAMION: 2,
+      TAXI: 5,
+    };
+    const maxAllowed = maxByType[vehicleType] ?? 6;
+    if (vehicleCompanionsCount < 0 || vehicleCompanionsCount > maxAllowed) {
+      return `Acompanantes invalidos para ${vehicleType}. Maximo: ${maxAllowed}.`;
+    }
+  }
 
   const idPhoto = formData.get("idPhoto");
   if (!(idPhoto instanceof File)) {
@@ -242,7 +284,10 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
           code: createGuardGeneratedCode(),
           visitorName,
           description,
-          hasVehicle: parsed.data.hasVehicle,
+          category: "VISIT",
+          hasVehicle,
+          vehicleType,
+          vehicleCompanionsCount,
           validityType: "SINGLE_USE",
           validFrom: validityWindow.validFrom,
           validUntil: validityWindow.validUntil,
@@ -396,6 +441,14 @@ export async function announceDeliveryAtGateAction(_prevState: string | null, fo
     await enforceGuardShiftForGateOperation(session.userId);
   } catch (error) {
     return error instanceof Error ? error.message : "Debes tener turno laboral activo.";
+  }
+
+  const settings = await prisma.residential.findUnique({
+    where: { id: session.residentialId },
+    select: { enablePostaDeliveries: true },
+  });
+  if (!settings?.enablePostaDeliveries) {
+    return "Pedidos en posta estan deshabilitados para esta residencial.";
   }
 
   const parsed = announceDeliverySchema.safeParse({

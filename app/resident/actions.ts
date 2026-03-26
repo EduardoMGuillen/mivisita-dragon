@@ -9,10 +9,16 @@ import { calculateValidityWindow } from "@/lib/qr";
 import { notifyGuardsInResidential, notifyResidentialAdminsInResidential } from "@/lib/push";
 
 const createInviteSchema = z.object({
+  category: z.enum(["VISIT", "DELIVERY"]).optional(),
   visitorName: z.string().min(2, "Nombre de visita invalido."),
   validityType: z.enum(["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE"]),
   description: z.string().max(180, "Descripcion demasiado larga.").optional(),
   hasVehicle: z.enum(["yes", "no"]).default("no"),
+  scheduleEnabled: z.enum(["on"]).optional(),
+  startsAt: z.string().optional(),
+  durationHours: z.coerce.number().int().min(1).max(72).optional(),
+  vehicleType: z.enum(["CARRO", "MOTO", "MICROBUS", "CAMION", "TAXI"]).optional(),
+  vehicleCompanionsCount: z.coerce.number().int().min(0).max(20).optional(),
 });
 
 const createZoneReservationSchema = z.object({
@@ -76,13 +82,23 @@ export async function createInviteQrAction(_prevState: string | null, formData: 
   if (!session.residentialId) return "Sesion invalida sin residencial asociada.";
 
   const parsed = createInviteSchema.safeParse({
+    category: formData.get("category") || undefined,
     visitorName: formData.get("visitorName"),
     validityType: formData.get("validityType"),
     description: formData.get("description") || undefined,
     hasVehicle: formData.get("hasVehicle") || "no",
+    scheduleEnabled: formData.get("scheduleEnabled") || undefined,
+    startsAt: formData.get("startsAt") || undefined,
+    durationHours: formData.get("durationHours") || undefined,
+    vehicleType: formData.get("vehicleType") || undefined,
+    vehicleCompanionsCount: formData.get("vehicleCompanionsCount") || undefined,
   });
 
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Datos invalidos.";
+
+  if (parsed.data.category === "DELIVERY") {
+    return "Usa la opcion Pedidos/Delivery para generar ese QR.";
+  }
 
   const policy = await prisma.residential.findUnique({
     where: { id: session.residentialId },
@@ -91,33 +107,94 @@ export async function createInviteQrAction(_prevState: string | null, formData: 
       allowResidentQrOneDay: true,
       allowResidentQrThreeDays: true,
       allowResidentQrInfinite: true,
+      enableResidentQrDateTime: true,
+      enableResidentQrVehicleType: true,
+      enableResidentQrVehicleCompanions: true,
     },
   });
   if (!policy) return "Residencial no encontrada.";
 
-  const allowed: Record<string, boolean> = {
-    SINGLE_USE: policy.allowResidentQrSingleUse,
-    ONE_DAY: policy.allowResidentQrOneDay,
-    THREE_DAYS: policy.allowResidentQrThreeDays,
-    INFINITE: policy.allowResidentQrInfinite,
-  };
-  if (!allowed[parsed.data.validityType]) {
-    return "La administracion deshabilito esta vigencia QR para residentes.";
+  const generatedCode = randomUUID().replaceAll("-", "");
+  const scheduleMode = policy.enableResidentQrDateTime && parsed.data.scheduleEnabled === "on";
+
+  let validFrom: Date;
+  let validUntil: Date;
+  let maxUses: number;
+  let scheduledStartsAt: Date | null = null;
+  let durationHours: number | null = null;
+  let validityType: "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE" = parsed.data.validityType;
+
+  if (scheduleMode) {
+    const startsAtRaw = parsed.data.startsAt?.trim() ?? "";
+    const startsAt = parseTegucigalpaDateTime(startsAtRaw);
+    if (!startsAt) return "Fecha/hora de inicio invalida.";
+    const hours = parsed.data.durationHours ?? 0;
+    if (!hours || Number.isNaN(hours)) return "Duracion invalida.";
+    validFrom = startsAt;
+    validUntil = new Date(startsAt.getTime() + hours * 60 * 60 * 1000);
+    maxUses = 1;
+    validityType = "SINGLE_USE";
+    scheduledStartsAt = startsAt;
+    durationHours = hours;
+  } else {
+    const allowed: Record<string, boolean> = {
+      SINGLE_USE: policy.allowResidentQrSingleUse,
+      ONE_DAY: policy.allowResidentQrOneDay,
+      THREE_DAYS: policy.allowResidentQrThreeDays,
+      INFINITE: policy.allowResidentQrInfinite,
+    };
+    if (!allowed[parsed.data.validityType]) {
+      return "La administracion deshabilito esta vigencia QR para residentes.";
+    }
+    const validityWindow = calculateValidityWindow(parsed.data.validityType);
+    validFrom = validityWindow.validFrom;
+    validUntil = validityWindow.validUntil;
+    maxUses = validityWindow.maxUses;
   }
 
-  const generatedCode = randomUUID().replaceAll("-", "");
-  const validityWindow = calculateValidityWindow(parsed.data.validityType);
+  const hasVehicle = parsed.data.hasVehicle === "yes";
+  const vehicleType = policy.enableResidentQrVehicleType && hasVehicle ? parsed.data.vehicleType ?? null : null;
+  const vehicleCompanionsCount =
+    policy.enableResidentQrVehicleCompanions && hasVehicle
+      ? (parsed.data.vehicleCompanionsCount ?? null)
+      : null;
+
+  if (policy.enableResidentQrVehicleCompanions && hasVehicle) {
+    if (!policy.enableResidentQrVehicleType) {
+      return "La residencial debe habilitar tipo de vehiculo para usar acompanantes.";
+    }
+    if (!vehicleType) return "Debes seleccionar tipo de vehiculo.";
+    if (vehicleCompanionsCount == null || Number.isNaN(vehicleCompanionsCount)) {
+      return "Debes indicar cantidad de acompanantes.";
+    }
+    const maxByType: Record<string, number> = {
+      CARRO: 6,
+      MOTO: 1,
+      MICROBUS: 14,
+      CAMION: 2,
+      TAXI: 5,
+    };
+    const maxAllowed = maxByType[vehicleType] ?? 6;
+    if (vehicleCompanionsCount < 0 || vehicleCompanionsCount > maxAllowed) {
+      return `Acompanantes invalidos para ${vehicleType}. Maximo: ${maxAllowed}.`;
+    }
+  }
 
   await prisma.qrCode.create({
     data: {
       code: generatedCode,
       visitorName: parsed.data.visitorName.trim(),
-      validityType: parsed.data.validityType,
+      category: "VISIT",
+      validityType,
       description: parsed.data.description?.trim() || null,
-      hasVehicle: parsed.data.hasVehicle === "yes",
-      validFrom: validityWindow.validFrom,
-      validUntil: validityWindow.validUntil,
-      maxUses: validityWindow.maxUses,
+      hasVehicle,
+      vehicleType,
+      vehicleCompanionsCount,
+      scheduledStartsAt,
+      durationHours,
+      validFrom,
+      validUntil,
+      maxUses,
       residentId: session.userId,
       residentialId: session.residentialId,
     },
@@ -131,6 +208,66 @@ export async function createInviteQrAction(_prevState: string | null, formData: 
 
   revalidatePath("/resident");
   return "QR generado correctamente.";
+}
+
+const createDeliverySchema = z.object({
+  visitorName: z.string().min(2, "Nombre del repartidor/empresa invalido.").max(80),
+  startsAt: z.string().min(1, "Debes seleccionar fecha/hora de inicio."),
+  durationHours: z.coerce.number().int().min(1, "Minimo 1 hora.").max(72, "Maximo 72 horas."),
+});
+
+export async function createDeliveryQrAction(_prevState: string | null, formData: FormData) {
+  const session = await requireRole(["RESIDENT"]);
+  if (!session.residentialId) return "Sesion invalida sin residencial asociada.";
+
+  const parsed = createDeliverySchema.safeParse({
+    visitorName: formData.get("visitorName"),
+    startsAt: formData.get("startsAt"),
+    durationHours: formData.get("durationHours"),
+  });
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? "Datos invalidos.";
+
+  const settings = await prisma.residential.findUnique({
+    where: { id: session.residentialId },
+    select: { enableResidentDeliveryQr: true },
+  });
+  if (!settings) return "Residencial no encontrada.";
+  if (!settings.enableResidentDeliveryQr) return "La administracion deshabilito QRs de Pedidos/Delivery.";
+
+  const startsAt = parseTegucigalpaDateTime(parsed.data.startsAt);
+  if (!startsAt) return "Fecha/hora de inicio invalida.";
+  const validFrom = startsAt;
+  const validUntil = new Date(startsAt.getTime() + parsed.data.durationHours * 60 * 60 * 1000);
+
+  const generatedCode = randomUUID().replaceAll("-", "");
+  await prisma.qrCode.create({
+    data: {
+      code: generatedCode,
+      visitorName: parsed.data.visitorName.trim(),
+      category: "DELIVERY",
+      description: "Pedidos/Delivery",
+      hasVehicle: false,
+      vehicleType: null,
+      vehicleCompanionsCount: null,
+      validityType: "SINGLE_USE",
+      scheduledStartsAt: startsAt,
+      durationHours: parsed.data.durationHours,
+      validFrom,
+      validUntil,
+      maxUses: 1,
+      residentId: session.userId,
+      residentialId: session.residentialId,
+    },
+  });
+
+  await notifyGuardsInResidential(session.residentialId, {
+    title: "Nuevo delivery anunciado",
+    body: `Delivery anunciado por ${session.fullName}: ${parsed.data.visitorName.trim()}.`,
+    url: "/guard",
+  });
+
+  revalidatePath("/resident");
+  return "QR de delivery generado correctamente.";
 }
 
 export async function createZoneReservationAction(_prevState: string | null, formData: FormData) {

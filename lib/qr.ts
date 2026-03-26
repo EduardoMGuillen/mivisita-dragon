@@ -147,12 +147,16 @@ export async function validateAndConsumeQr({
     });
   }
 
+  const requiresPlateEvidence = qr.category === "DELIVERY" || qr.hasVehicle;
+
   return {
     valid: true,
     reason: consume ? "Ingreso autorizado." : "QR valido. Falta capturar foto del ID.",
     visitorName: qr.visitorName,
     visitorDescription: qr.description,
     hasVehicle: qr.hasVehicle,
+    qrCategory: qr.category,
+    requiresPlateEvidence,
     residentialName: qr.residential.name,
     residentName: qr.resident.fullName,
     residentId: qr.residentId,

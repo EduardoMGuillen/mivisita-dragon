@@ -47,10 +47,10 @@ export async function POST(request: Request) {
     let platePhotoData: Uint8Array | undefined;
     let platePhotoMimeType: string | undefined;
     let platePhotoSize: number | undefined;
-    if (preValidation.hasVehicle) {
+    if (preValidation.requiresPlateEvidence) {
       if (!(platePhoto instanceof File)) {
         return NextResponse.json(
-          { error: "Este QR requiere foto de placa porque la visita viene en vehiculo." },
+          { error: "Este QR requiere foto de placa para completar el registro." },
           { status: 400 },
         );
       }

@@ -9,6 +9,8 @@ type ScanResult = {
   visitorName?: string | null;
   visitorDescription?: string | null;
   hasVehicle?: boolean;
+  requiresPlateEvidence?: boolean;
+  qrCategory?: "VISIT" | "DELIVERY";
   residentName?: string | null;
   residentialName?: string | null;
   residentId?: string | null;
@@ -161,7 +163,7 @@ export function GuardQrScanner() {
       setIdCaptureError("Debes tomar o seleccionar una foto del ID.");
       return;
     }
-    if (pendingResult?.hasVehicle && !platePhotoFile) {
+    if (pendingResult?.requiresPlateEvidence && !platePhotoFile) {
       setIdCaptureError("Debes tomar o seleccionar una foto de la placa.");
       return;
     }

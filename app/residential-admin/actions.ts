@@ -73,6 +73,12 @@ const updateResidentialSettingsSchema = z.object({
   allowResidentQrOneDay: z.enum(["on"]).optional(),
   allowResidentQrThreeDays: z.enum(["on"]).optional(),
   allowResidentQrInfinite: z.enum(["on"]).optional(),
+  enableResidentQrDateTime: z.enum(["on"]).optional(),
+  enableResidentQrVehicleType: z.enum(["on"]).optional(),
+  enableResidentQrVehicleCompanions: z.enum(["on"]).optional(),
+  enableResidentDeliveryQr: z.enum(["on"]).optional(),
+  enablePostaDeliveries: z.enum(["on"]).optional(),
+  enableAutoDeleteSuspendedResidents: z.enum(["on"]).optional(),
 });
 
 const updateZoneScheduleSchema = z.object({
@@ -581,6 +587,12 @@ export async function updateResidentialSettingsAction(_prevState: string | null,
     allowResidentQrOneDay: formData.get("allowResidentQrOneDay") || undefined,
     allowResidentQrThreeDays: formData.get("allowResidentQrThreeDays") || undefined,
     allowResidentQrInfinite: formData.get("allowResidentQrInfinite") || undefined,
+    enableResidentQrDateTime: formData.get("enableResidentQrDateTime") || undefined,
+    enableResidentQrVehicleType: formData.get("enableResidentQrVehicleType") || undefined,
+    enableResidentQrVehicleCompanions: formData.get("enableResidentQrVehicleCompanions") || undefined,
+    enableResidentDeliveryQr: formData.get("enableResidentDeliveryQr") || undefined,
+    enablePostaDeliveries: formData.get("enablePostaDeliveries") || undefined,
+    enableAutoDeleteSuspendedResidents: formData.get("enableAutoDeleteSuspendedResidents") || undefined,
   });
   if (!parsed.success) return parsed.error.issues[0]?.message ?? "Datos invalidos.";
 
@@ -588,6 +600,12 @@ export async function updateResidentialSettingsAction(_prevState: string | null,
   const allowResidentQrOneDay = parsed.data.allowResidentQrOneDay === "on";
   const allowResidentQrThreeDays = parsed.data.allowResidentQrThreeDays === "on";
   const allowResidentQrInfinite = parsed.data.allowResidentQrInfinite === "on";
+  const enableResidentQrDateTime = parsed.data.enableResidentQrDateTime === "on";
+  const enableResidentQrVehicleType = parsed.data.enableResidentQrVehicleType === "on";
+  const enableResidentQrVehicleCompanions = parsed.data.enableResidentQrVehicleCompanions === "on";
+  const enableResidentDeliveryQr = parsed.data.enableResidentDeliveryQr === "on";
+  const enablePostaDeliveries = parsed.data.enablePostaDeliveries === "on";
+  const enableAutoDeleteSuspendedResidents = parsed.data.enableAutoDeleteSuspendedResidents === "on";
 
   if (
     !allowResidentQrSingleUse &&
@@ -606,6 +624,12 @@ export async function updateResidentialSettingsAction(_prevState: string | null,
       allowResidentQrOneDay,
       allowResidentQrThreeDays,
       allowResidentQrInfinite,
+      enableResidentQrDateTime,
+      enableResidentQrVehicleType,
+      enableResidentQrVehicleCompanions,
+      enableResidentDeliveryQr,
+      enablePostaDeliveries,
+      enableAutoDeleteSuspendedResidents,
     },
   });
 

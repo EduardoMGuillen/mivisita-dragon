@@ -1,16 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createManualVisitByGuardAction } from "@/app/guard/actions";
 
 const initialState: string | null = null;
 
 export function GuardManualEntryForm({
   residents,
+  enableVehicleType,
+  enableVehicleCompanions,
 }: {
   residents: Array<{ id: string; fullName: string }>;
+  enableVehicleType: boolean;
+  enableVehicleCompanions: boolean;
 }) {
   const [message, formAction, isPending] = useActionState(createManualVisitByGuardAction, initialState);
+  const [hasVehicle, setHasVehicle] = useState(false);
 
   return (
     <form action={formAction} className="grid gap-3 md:grid-cols-2">
@@ -34,9 +39,38 @@ export function GuardManualEntryForm({
         La <strong>entrada queda registrada al enviar</strong> con la evidencia de identificacion (y placa si aplica).
       </p>
       <label className="flex items-center gap-2 text-sm text-slate-700 md:col-span-2">
-        <input type="checkbox" name="hasVehicle" />
+        <input
+          type="checkbox"
+          name="hasVehicle"
+          checked={hasVehicle}
+          onChange={(e) => setHasVehicle(e.target.checked)}
+        />
         La visita viene en vehiculo (evidencia de placa obligatoria).
       </label>
+
+      {hasVehicle && enableVehicleType ? (
+        <label className="grid gap-1 text-xs text-slate-600 md:col-span-1">
+          Tipo de vehiculo
+          <select name="vehicleType" defaultValue="CARRO" className="field-base" required>
+            <option value="CARRO">Carro</option>
+            <option value="MOTO">Moto</option>
+            <option value="MICROBUS">Microbus</option>
+            <option value="CAMION">Camion</option>
+            <option value="TAXI">Taxi</option>
+          </select>
+        </label>
+      ) : (
+        <input type="hidden" name="vehicleType" value="" />
+      )}
+
+      {hasVehicle && enableVehicleCompanions ? (
+        <label className="grid gap-1 text-xs text-slate-600 md:col-span-1">
+          Acompanantes (sin conductor)
+          <input name="vehicleCompanionsCount" type="number" min={0} max={20} step={1} required className="field-base" />
+        </label>
+      ) : (
+        <input type="hidden" name="vehicleCompanionsCount" value="" />
+      )}
       <label className="grid gap-1 text-xs text-slate-600 md:col-span-2">
         Evidencia de identificacion del visitante (obligatoria)
         <input

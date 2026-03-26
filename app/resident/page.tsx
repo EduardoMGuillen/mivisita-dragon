@@ -62,6 +62,10 @@ export default async function ResidentPage() {
           allowResidentQrOneDay: true,
           allowResidentQrThreeDays: true,
           allowResidentQrInfinite: true,
+          enableResidentQrDateTime: true,
+          enableResidentQrVehicleType: true,
+          enableResidentQrVehicleCompanions: true,
+          enableResidentDeliveryQr: true,
         },
       })
     : null;
@@ -193,7 +197,13 @@ export default async function ResidentPage() {
 
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Crear anuncio de visita</h2>
-        <CreateQrForm allowedValidityTypes={allowedValidityTypes} />
+        <CreateQrForm
+          allowedValidityTypes={allowedValidityTypes}
+          enableResidentQrDateTime={residential?.enableResidentQrDateTime ?? false}
+          enableResidentQrVehicleType={residential?.enableResidentQrVehicleType ?? false}
+          enableResidentQrVehicleCompanions={residential?.enableResidentQrVehicleCompanions ?? false}
+          enableResidentDeliveryQr={residential?.enableResidentDeliveryQr ?? false}
+        />
       </Card>
 
       <Card>

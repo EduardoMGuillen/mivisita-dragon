@@ -140,6 +140,15 @@ export default async function GuardPage() {
     GUARD_SHIFT_ENFORCEMENT_ENABLED && nextHeartbeatAt
       ? now.getTime() > nextHeartbeatAt.getTime()
       : false;
+  const residentialSettings = await prisma.residential.findUnique({
+    where: { id: session.residentialId },
+    select: {
+      enablePostaDeliveries: true,
+      enableResidentQrVehicleType: true,
+      enableResidentQrVehicleCompanions: true,
+    },
+  });
+  const showPostaDeliveries = Boolean(residentialSettings?.enablePostaDeliveries);
   const residents = await prisma.user.findMany({
     where: {
       residentialId: session.residentialId,
@@ -175,13 +184,15 @@ export default async function GuardPage() {
         <GuardQrScanner />
       </Card>
 
-      <Card>
-        <h2 className="mb-2 text-lg font-semibold text-slate-900">Delivery en entrada</h2>
-        <p className="mb-4 text-sm text-slate-600">
-          Selecciona el residente y notifica que su delivery esta en la entrada.
-        </p>
-        <GuardDeliveryAnnouncementForm residents={residents} />
-      </Card>
+      {showPostaDeliveries ? (
+        <Card>
+          <h2 className="mb-2 text-lg font-semibold text-slate-900">Pedidos en posta</h2>
+          <p className="mb-4 text-sm text-slate-600">
+            Selecciona el residente y notifica que su pedido/delivery esta en la posta de seguridad.
+          </p>
+          <GuardDeliveryAnnouncementForm residents={residents} />
+        </Card>
+      ) : null}
 
       <Card>
         <h2 className="mb-2 text-lg font-semibold text-slate-900">Entrada manual por llamada (Posta)</h2>
@@ -190,7 +201,11 @@ export default async function GuardPage() {
           guardar; el residente ve el codigo con etiqueta de Posta de Seguridad y recibe notificacion push si esta
           suscrito. Solo quien registro la entrada puede marcar salida manual mas abajo.
         </p>
-        <GuardManualEntryForm residents={residents} />
+        <GuardManualEntryForm
+          residents={residents}
+          enableVehicleType={Boolean(residentialSettings?.enableResidentQrVehicleType)}
+          enableVehicleCompanions={Boolean(residentialSettings?.enableResidentQrVehicleCompanions)}
+        />
 
         <h3 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-700">
           Salidas pendientes (tus registros de Posta)

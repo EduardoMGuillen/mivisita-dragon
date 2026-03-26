@@ -18,6 +18,12 @@ export default async function ResidentialAdminConfigurationPage() {
       allowResidentQrOneDay: true,
       allowResidentQrThreeDays: true,
       allowResidentQrInfinite: true,
+      enableResidentQrDateTime: true,
+      enableResidentQrVehicleType: true,
+      enableResidentQrVehicleCompanions: true,
+      enableResidentDeliveryQr: true,
+      enablePostaDeliveries: true,
+      enableAutoDeleteSuspendedResidents: true,
     },
   });
 
@@ -31,6 +37,12 @@ export default async function ResidentialAdminConfigurationPage() {
           allowResidentQrOneDay={residential?.allowResidentQrOneDay ?? true}
           allowResidentQrThreeDays={residential?.allowResidentQrThreeDays ?? true}
           allowResidentQrInfinite={residential?.allowResidentQrInfinite ?? true}
+          enableResidentQrDateTime={residential?.enableResidentQrDateTime ?? false}
+          enableResidentQrVehicleType={residential?.enableResidentQrVehicleType ?? false}
+          enableResidentQrVehicleCompanions={residential?.enableResidentQrVehicleCompanions ?? false}
+          enableResidentDeliveryQr={residential?.enableResidentDeliveryQr ?? false}
+          enablePostaDeliveries={residential?.enablePostaDeliveries ?? false}
+          enableAutoDeleteSuspendedResidents={residential?.enableAutoDeleteSuspendedResidents ?? false}
         />
       </Card>
       <Card>

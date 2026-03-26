@@ -41,6 +41,19 @@ enum ZoneReservationStatus {
   CANCELLED
 }
 
+enum QrCategory {
+  VISIT
+  DELIVERY
+}
+
+enum VehicleType {
+  CARRO
+  MOTO
+  MICROBUS
+  CAMION
+  TAXI
+}
+
 enum GuardShiftMarkType {
   HEARTBEAT
 }
@@ -53,6 +66,12 @@ model Residential {
   allowResidentQrOneDay     Boolean  @default(true)
   allowResidentQrThreeDays  Boolean  @default(true)
   allowResidentQrInfinite   Boolean  @default(true)
+  enableResidentQrDateTime            Boolean @default(false)
+  enableResidentQrVehicleType         Boolean @default(false)
+  enableResidentQrVehicleCompanions   Boolean @default(false)
+  enableResidentDeliveryQr            Boolean @default(false)
+  enablePostaDeliveries               Boolean @default(false)
+  enableAutoDeleteSuspendedResidents  Boolean @default(false)
   gateLatitude  Float?
   gateLongitude Float?
   gateRadiusMeters Int              @default(80)
@@ -103,8 +122,13 @@ model QrCode {
   code          String      @unique
   visitorName   String
   description   String?
+  category      QrCategory  @default(VISIT)
   hasVehicle    Boolean     @default(false)
+  vehicleType   VehicleType?
+  vehicleCompanionsCount Int?
   validityType  QrValidity
+  scheduledStartsAt DateTime?
+  durationHours Int?
   validFrom     DateTime
   validUntil    DateTime
   maxUses       Int

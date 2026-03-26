@@ -27,7 +27,7 @@ export async function loginAction(_prevState: string | null, formData: FormData)
     where: { email },
     include: {
       residential: {
-        select: { name: true, isSuspended: true },
+        select: { name: true, isSuspended: true, supportPhone: true },
       },
     },
   });
@@ -39,7 +39,9 @@ export async function loginAction(_prevState: string | null, formData: FormData)
 
   if (user.isSuspended) {
     const residentialName = user.residential?.name ?? "tu residencial";
-    return `Cuenta suspendida por la Administracion de "${residentialName}", contactarlos para mas informacion`;
+    const phone = (user.residential?.supportPhone ?? "").trim();
+    const contact = phone ? ` Contacto residencial: ${phone}` : "";
+    return `Cuenta suspendida por la Administracion de "${residentialName}", contactalos para mas informacion.${contact}`;
   }
 
   if (user.role !== "SUPER_ADMIN" && user.residentialId) {

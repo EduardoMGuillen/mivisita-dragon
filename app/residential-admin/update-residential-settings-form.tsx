@@ -11,12 +11,24 @@ export function UpdateResidentialSettingsForm({
   allowResidentQrOneDay,
   allowResidentQrThreeDays,
   allowResidentQrInfinite,
+  enableResidentQrDateTime,
+  enableResidentQrVehicleType,
+  enableResidentQrVehicleCompanions,
+  enableResidentDeliveryQr,
+  enablePostaDeliveries,
+  enableAutoDeleteSuspendedResidents,
 }: {
   supportPhone: string;
   allowResidentQrSingleUse: boolean;
   allowResidentQrOneDay: boolean;
   allowResidentQrThreeDays: boolean;
   allowResidentQrInfinite: boolean;
+  enableResidentQrDateTime: boolean;
+  enableResidentQrVehicleType: boolean;
+  enableResidentQrVehicleCompanions: boolean;
+  enableResidentDeliveryQr: boolean;
+  enablePostaDeliveries: boolean;
+  enableAutoDeleteSuspendedResidents: boolean;
 }) {
   const [message, formAction, isPending] = useActionState(updateResidentialSettingsAction, initialState);
 
@@ -55,6 +67,49 @@ export function UpdateResidentialSettingsForm({
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" name="allowResidentQrInfinite" value="on" defaultChecked={allowResidentQrInfinite} />
           Sin vencimiento (infinito)
+        </label>
+      </div>
+
+      <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+          Funcionalidades (por residencial)
+        </p>
+        <p className="text-xs text-slate-500">
+          Estas opciones activan campos y validaciones adicionales. Por defecto vienen desactivadas.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="enableResidentQrDateTime" value="on" defaultChecked={enableResidentQrDateTime} />
+          QR por fecha/hora + duracion (residentes)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="enableResidentQrVehicleType" value="on" defaultChecked={enableResidentQrVehicleType} />
+          Tipo de vehiculo (residentes)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            name="enableResidentQrVehicleCompanions"
+            value="on"
+            defaultChecked={enableResidentQrVehicleCompanions}
+          />
+          Acompanantes en vehiculo (residentes)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="enableResidentDeliveryQr" value="on" defaultChecked={enableResidentDeliveryQr} />
+          QR \"Pedidos/Delivery\" (residentes)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="enablePostaDeliveries" value="on" defaultChecked={enablePostaDeliveries} />
+          Pedidos en posta (guardias)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            name="enableAutoDeleteSuspendedResidents"
+            value="on"
+            defaultChecked={enableAutoDeleteSuspendedResidents}
+          />
+          Auto-eliminar residentes suspendidos por 4 meses
         </label>
       </div>
 
