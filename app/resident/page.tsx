@@ -20,6 +20,7 @@ type InviteWithImage = {
   validUntil: Date;
   usedCount: number;
   maxUses: number;
+  isRevoked: boolean;
   image: string;
   isPosta: boolean;
   showResidentDescription: boolean;
@@ -166,6 +167,7 @@ export default async function ResidentPage() {
         validUntil: invite.validUntil,
         usedCount: invite.usedCount,
         maxUses: invite.maxUses,
+        isRevoked: invite.isRevoked,
         image: await QRCode.toDataURL(`MP:${invite.code}`),
         isPosta,
         showResidentDescription: Boolean(invite.description && !isPosta),
@@ -185,6 +187,7 @@ export default async function ResidentPage() {
     (invite) =>
       invite.validUntil >= now &&
       invite.usedCount < invite.maxUses &&
+      !invite.isRevoked &&
       !postaVisitsOpen.some((p) => p.id === invite.id),
   );
   const expiredInvites = invitesWithImage.filter(
