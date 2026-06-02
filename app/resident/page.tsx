@@ -73,19 +73,31 @@ export default async function ResidentPage() {
     ? allowedValidityTypesFromResidential(residential)
     : (["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE"] as AllowedValidity[]);
 
-  const invites = await prisma.qrCode.findMany({
-    where: { residentId: session.userId },
-    orderBy: [{ validUntil: "asc" }, { createdAt: "desc" }],
-    take: 40,
-    include: {
-      scans: {
-        where: { isValid: true },
-        orderBy: { scannedAt: "desc" },
-        take: 1,
-        select: { scannedAt: true, exitedAt: true },
-      },
+  const now = new Date();
+  const scansInclude = {
+    scans: {
+      where: { isValid: true },
+      orderBy: { scannedAt: "desc" } as const,
+      take: 1,
+      select: { scannedAt: true, exitedAt: true },
     },
-  });
+  };
+  // Split into two queries so active QRs are never hidden by a hard cap
+  const [activeInvitesRaw, expiredInvitesRaw] = await Promise.all([
+    prisma.qrCode.findMany({
+      where: { residentId: session.userId, validUntil: { gte: now } },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+      include: scansInclude,
+    }),
+    prisma.qrCode.findMany({
+      where: { residentId: session.userId, validUntil: { lt: now } },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      include: scansInclude,
+    }),
+  ]);
+  const invites = [...activeInvitesRaw, ...expiredInvitesRaw];
   const [zones, reservations, zoneReservations, zoneBlocks] = await Promise.all([
     prisma.zone.findMany({
       where: { residentialId: session.residentialId ?? "", isActive: true },
@@ -162,7 +174,6 @@ export default async function ResidentPage() {
     }),
   );
 
-  const now = new Date();
   const postaVisitsOpen = invitesWithImage.filter(
     (invite) =>
       invite.isPosta &&
