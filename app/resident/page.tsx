@@ -1,12 +1,11 @@
 import QRCode from "qrcode";
 import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
-import { Card, DashboardShell } from "@/app/components/shell";
+import { Card } from "@/app/components/shell";
 import { CreateQrForm } from "@/app/resident/create-qr-form";
 import { CreateZoneReservationForm } from "@/app/resident/create-zone-reservation-form";
-import { ResidentSuggestionForm } from "@/app/resident/suggestion-form";
-import { PushSubscriptionCard } from "@/app/resident/push-subscription";
-import { deleteInviteQrAction, cancelZoneReservationAction } from "@/app/resident/actions";
+import { ReservationRowActions } from "@/app/resident/reservation-row-actions";
+import { deleteInviteQrAction } from "@/app/resident/actions";
 import { QrShareActions } from "@/app/resident/qr-share-actions";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
 import { isGuardPostaQr } from "@/lib/guard-posta";
@@ -87,7 +86,7 @@ export default async function ResidentPage() {
       },
     },
   });
-  const [zones, reservations, zoneReservations, zoneBlocks, latestAnnouncementRecipient] = await Promise.all([
+  const [zones, reservations, zoneReservations, zoneBlocks] = await Promise.all([
     prisma.zone.findMany({
       where: { residentialId: session.residentialId ?? "", isActive: true },
       orderBy: { name: "asc" },
@@ -98,7 +97,18 @@ export default async function ResidentPage() {
         residentId: session.userId,
         status: "APPROVED",
       },
-      include: { zone: { select: { name: true } } },
+      include: {
+        zone: {
+          select: {
+            id: true,
+            name: true,
+            maxHoursPerReservation: true,
+            oneReservationPerDay: true,
+            scheduleStartHour: true,
+            scheduleEndHour: true,
+          },
+        },
+      },
       orderBy: { startsAt: "asc" },
       take: 40,
     }),
@@ -108,6 +118,7 @@ export default async function ResidentPage() {
         status: "APPROVED",
       },
       select: {
+        id: true,
         zoneId: true,
         startsAt: true,
         endsAt: true,
@@ -127,21 +138,7 @@ export default async function ResidentPage() {
       orderBy: { startsAt: "asc" },
       take: 800,
     }),
-    prisma.adminAnnouncementRecipient.findFirst({
-      where: { userId: session.userId },
-      include: {
-        announcement: {
-          select: {
-            title: true,
-            message: true,
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
   ]);
-  const latestAnnouncement = latestAnnouncementRecipient?.announcement ?? null;
 
   const invitesWithImage: InviteWithImage[] = await Promise.all(
     invites.map(async (invite) => {
@@ -184,17 +181,24 @@ export default async function ResidentPage() {
       !postaVisitsOpen.some((p) => p.id === invite.id) &&
       !activeInvites.some((a) => a.id === invite.id),
   );
-  const supportPhoneDigits = (residential?.supportPhone ?? "").replaceAll(/\D+/g, "");
-  const supportWhatsappUrl = supportPhoneDigits ? `https://wa.me/${supportPhoneDigits}` : null;
+  const zoneOccupiedSlots = [
+    ...zoneReservations.map((item) => ({
+      zoneId: item.zoneId,
+      startsAtIso: item.startsAt.toISOString(),
+      endsAtIso: item.endsAt.toISOString(),
+      source: "reservation" as const,
+      reservationId: item.id,
+    })),
+    ...zoneBlocks.map((item) => ({
+      zoneId: item.zoneId,
+      startsAtIso: item.startsAt.toISOString(),
+      endsAtIso: item.endsAt.toISOString(),
+      source: "block" as const,
+    })),
+  ];
 
   return (
-    <DashboardShell
-      title="Panel de Residente"
-      subtitle="Anuncia tus visitas y comparte su QR."
-      user={session.fullName}
-    >
-      <PushSubscriptionCard />
-
+    <>
       <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Crear anuncio de visita</h2>
         <CreateQrForm
@@ -217,20 +221,7 @@ export default async function ResidentPage() {
             scheduleStartHour: zone.scheduleStartHour,
             scheduleEndHour: zone.scheduleEndHour,
           }))}
-          occupiedSlots={[
-            ...zoneReservations.map((item) => ({
-              zoneId: item.zoneId,
-              startsAtIso: item.startsAt.toISOString(),
-              endsAtIso: item.endsAt.toISOString(),
-              source: "reservation" as const,
-            })),
-            ...zoneBlocks.map((item) => ({
-              zoneId: item.zoneId,
-              startsAtIso: item.startsAt.toISOString(),
-              endsAtIso: item.endsAt.toISOString(),
-              source: "block" as const,
-            })),
-          ]}
+          occupiedSlots={zoneOccupiedSlots}
         />
 
         <div className="mt-4 grid gap-2">
@@ -241,12 +232,22 @@ export default async function ResidentPage() {
                 {formatDateTimeTegucigalpa(reservation.startsAt)} - {formatDateTimeTegucigalpa(reservation.endsAt)}
               </p>
               {reservation.note ? <p className="text-xs text-slate-500">Nota: {reservation.note}</p> : null}
-              <form action={cancelZoneReservationAction} className="mt-2">
-                <input type="hidden" name="reservationId" value={reservation.id} />
-                <button className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
-                  Cancelar reserva
-                </button>
-              </form>
+              <ReservationRowActions
+                reservationId={reservation.id}
+                zoneId={reservation.zone.id}
+                zoneName={reservation.zone.name}
+                startsAtIso={reservation.startsAt.toISOString()}
+                endsAtIso={reservation.endsAt.toISOString()}
+                note={reservation.note}
+                residentialName={residential?.name}
+                zone={{
+                  maxHoursPerReservation: reservation.zone.maxHoursPerReservation,
+                  oneReservationPerDay: reservation.zone.oneReservationPerDay,
+                  scheduleStartHour: reservation.zone.scheduleStartHour,
+                  scheduleEndHour: reservation.zone.scheduleEndHour,
+                }}
+                occupiedSlots={zoneOccupiedSlots}
+              />
             </div>
           ))}
           {reservations.length === 0 ? (
@@ -413,42 +414,6 @@ export default async function ResidentPage() {
         </details>
       </Card>
 
-      <Card>
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Soporte</h2>
-        {supportWhatsappUrl ? (
-          <a
-            href={supportWhatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
-          >
-            Contactar soporte por WhatsApp
-          </a>
-        ) : (
-          <p className="text-sm text-slate-600">
-            Tu residencial aun no configura un numero de soporte.
-          </p>
-        )}
-        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">Ultimo comunicado</p>
-          {latestAnnouncement ? (
-            <>
-              <p className="mt-1 text-sm font-semibold text-slate-900">{latestAnnouncement.title}</p>
-              <p className="text-xs text-slate-600">
-                {formatDateTimeTegucigalpa(latestAnnouncement.createdAt)}
-              </p>
-              <p className="mt-1 text-sm text-slate-700">{latestAnnouncement.message}</p>
-            </>
-          ) : (
-            <p className="mt-1 text-sm text-slate-600">Aun no tienes comunicados.</p>
-          )}
-        </div>
-      </Card>
-
-      <Card>
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">Sugerencias para la administracion</h2>
-        <ResidentSuggestionForm />
-      </Card>
-    </DashboardShell>
+    </>
   );
 }

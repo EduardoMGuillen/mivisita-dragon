@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { ConfirmSubmitButton } from "@/app/components/confirm-submit-button";
 import { PasswordField } from "@/app/components/password-field";
 import { CreateResidentialUserForm } from "@/app/residential-admin/create-user-form";
+import { ResidentialOneTimePasswordControls } from "@/app/residential-admin/one-time-password-controls";
+import { CopyResidentialCredentialsButton } from "@/app/residential-admin/copy-credentials-button";
 import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
 import {
@@ -56,6 +58,19 @@ export default async function ResidentialAdminUsersPage({
   const users = await prisma.user.findMany({
     where: usersWhere,
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      personalEmail: true,
+      phoneNumber: true,
+      role: true,
+      isSuspended: true,
+      residentCategory: true,
+      houseNumber: true,
+      createdAt: true,
+      oneTimePasswordCreatedAt: true,
+    },
   });
   const totalUsersInResidential = await prisma.user.count({
     where: {
@@ -120,8 +135,22 @@ export default async function ResidentialAdminUsersPage({
                     </p>
                   ) : null}
                   <p className="text-xs text-slate-500">Vivienda: {user.houseNumber || "Sin definir"}</p>
+                  <p className="text-xs text-slate-500">
+                    Correo personal: {user.personalEmail || "Sin definir"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Telefono personal: {user.phoneNumber || "Sin definir"}
+                  </p>
+                  {user.role === "RESIDENT" ? (
+                    <ResidentialOneTimePasswordControls
+                      userId={user.id}
+                      hasPersonalOtp={Boolean(user.oneTimePasswordCreatedAt)}
+                      otpCreatedAt={user.oneTimePasswordCreatedAt}
+                    />
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <CopyResidentialCredentialsButton userId={user.id} />
                   <form action={toggleResidentialUserSuspensionAction}>
                     <input type="hidden" name="userId" value={user.id} />
                     <input type="hidden" name="nextStatus" value={user.isSuspended ? "activate" : "suspend"} />

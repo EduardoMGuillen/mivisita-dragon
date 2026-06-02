@@ -14,7 +14,8 @@ export default async function TermsPage() {
       <section className="space-y-2 text-sm text-slate-700">
         <h2 className="text-lg font-semibold text-slate-900">1. Objeto del servicio</h2>
         <p>
-          Control Dragon es una plataforma de soporte para gestion de acceso residencial, reservas y reportes
+          MiVisita - Dragon Seguridad es una plataforma white label (motor MiVisita.app) para gestion de acceso
+          residencial, reservas y reportes
           operativos. Nexus Global provee la tecnologia y servicios asociados.
         </p>
       </section>
@@ -38,7 +39,7 @@ export default async function TermsPage() {
       <section className="space-y-2 text-sm text-slate-700">
         <h2 className="text-lg font-semibold text-slate-900">4. Uso permitido y prohibiciones</h2>
         <p>
-          Se prohibe utilizar Control Dragon para fines ilicitos, para interferir con la operacion, intentar acceso no
+          Se prohibe utilizar MiVisita - Dragon Seguridad para fines ilicitos, para interferir con la operacion, intentar acceso no
           autorizado, alterar registros, realizar ingenieria inversa o vulnerar infraestructura, APIs o mecanismos de
           seguridad.
         </p>

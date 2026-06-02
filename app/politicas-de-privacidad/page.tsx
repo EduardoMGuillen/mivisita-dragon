@@ -14,7 +14,8 @@ export default async function PrivacyPolicyPage() {
       <section className="space-y-2 text-sm text-slate-700">
         <h2 className="text-lg font-semibold text-slate-900">1. Responsable del tratamiento</h2>
         <p>
-          Control Dragon es una solucion operada con tecnologia de Nexus Global. Esta politica describe como se
+          MiVisita - Dragon Seguridad es una solucion white label sobre la plataforma MiVisita.app, operada con
+          tecnologia de Nexus Global. Esta politica describe como se
           recopilan, usan, almacenan y protegen datos personales y datos operativos de acceso residencial.
         </p>
       </section>

@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/super-admin/registros", label: "Registro y reportes" },
   { href: "/super-admin/estadisticas", label: "Estadisticas" },
   { href: "/super-admin/guard-attendance", label: "Asistencia guardias" },
+  { href: "/super-admin/banner", label: "Banner global" },
 ];
 
 export function SuperAdminNav() {

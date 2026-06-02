@@ -2,8 +2,14 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { createZoneReservationAction } from "@/app/resident/actions";
+import { ReservationSuccessDetailDialog } from "@/app/resident/reservation-details-dialog";
+import { ReservationScheduleConflictDialog } from "@/app/resident/reservation-schedule-conflict-dialog";
+import { isZoneReservationTakenByResidentState } from "@/lib/zone-reservation-feedback";
+import type { ZoneReservationActionState } from "@/lib/zone-reservation-form-state";
+import { formatTimeTegucigalpa } from "@/lib/datetime";
+import { useResidentT } from "@/app/resident/resident-i18n-context";
 
-const initialState: string | null = null;
+const initialState: ZoneReservationActionState | null = null;
 
 const HOURS = Array.from({ length: 24 }, (_, index) => index);
 
@@ -47,9 +53,11 @@ export function CreateZoneReservationForm({
     startsAtIso: string;
     endsAtIso: string;
     source: "reservation" | "block";
+    reservationId?: string;
   }>;
 }) {
-  const [message, formAction, isPending] = useActionState(createZoneReservationAction, initialState);
+  const { t } = useResidentT();
+  const [state, formAction, isPending] = useActionState(createZoneReservationAction, initialState);
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [reservationDate, setReservationDate] = useState(dateOnly(new Date()));
   const [startHour, setStartHour] = useState("08");
@@ -69,6 +77,20 @@ export function CreateZoneReservationForm({
         })),
     [occupiedSlots, zoneId],
   );
+
+  /** Reserva de residente que ocupa el día (solo zonas 1 reserva/día). */
+  const dayReservationBlockingOnePerDay = useMemo(() => {
+    if (!selectedZone?.oneReservationPerDay || !zoneId || !reservationDate) return null;
+    const dayStart = new Date(`${reservationDate}T00:00`);
+    const dayEnd = new Date(`${reservationDate}T23:59:59`);
+    return (
+      slotRanges.find(
+        (slot) =>
+          slot.source === "reservation" &&
+          overlapRange(dayStart, dayEnd, slot.startsAt, slot.endsAt),
+      ) ?? null
+    );
+  }, [selectedZone?.oneReservationPerDay, zoneId, reservationDate, slotRanges]);
 
   const occupiedHours = useMemo(() => {
     if (!zoneId || !reservationDate) return new Set<number>();
@@ -128,7 +150,14 @@ export function CreateZoneReservationForm({
   const endsAt = `${dateOnly(endsAtDate)}T${pad2(endsAtDate.getHours())}:00`;
 
   return (
-    <form action={formAction} className="grid w-full min-w-0 gap-3 overflow-x-hidden md:grid-cols-2">
+    <>
+      <ReservationScheduleConflictDialog state={state} isPending={isPending} />
+      <ReservationSuccessDetailDialog
+        state={state}
+        isPending={isPending}
+        title={t("zone.confirmedTitle")}
+      />
+      <form action={formAction} className="grid w-full min-w-0 gap-3 overflow-x-hidden md:grid-cols-2">
       <select
         name="zoneId"
         value={zoneId}
@@ -136,10 +165,10 @@ export function CreateZoneReservationForm({
         className="field-base min-w-0"
         required
       >
-        <option value="">Selecciona una zona</option>
+        <option value="">{t("zone.selectZone")}</option>
         {zones.map((zone) => (
           <option key={zone.id} value={zone.id}>
-            {zone.name} (max {zone.maxHoursPerReservation}h)
+            {zone.name} ({t("zone.zoneMax", { hours: zone.maxHoursPerReservation })})
           </option>
         ))}
       </select>
@@ -160,7 +189,7 @@ export function CreateZoneReservationForm({
         disabled={availableStartHours.length === 0}
       >
         {availableStartHours.length === 0 ? (
-          <option value="">No hay horas disponibles</option>
+          <option value="">{t("zone.noHours")}</option>
         ) : null}
         {availableStartHours.map((hour) => (
           <option key={hour} value={pad2(hour)}>
@@ -177,7 +206,7 @@ export function CreateZoneReservationForm({
       >
         {durationOptions.map((hours) => (
           <option key={hours} value={String(hours)}>
-            {hours} hora{hours > 1 ? "s" : ""}
+            {hours} {hours > 1 ? t("zone.hourUnits") : t("zone.hourUnit")}
           </option>
         ))}
       </select>
@@ -186,16 +215,24 @@ export function CreateZoneReservationForm({
       <input
         name="note"
         className="field-base min-w-0 md:col-span-2"
-        placeholder="Nota de reserva (opcional)"
+        placeholder={t("zone.notePlaceholder")}
         maxLength={180}
       />
-      {availableStartHours.length === 0 ? (
+      {selectedZone?.oneReservationPerDay && dayReservationBlockingOnePerDay ? (
+        <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium leading-relaxed text-sky-950 md:col-span-2">
+          {t("zone.onePerDayHint", {
+            name: selectedZone.name,
+            from: formatTimeTegucigalpa(dayReservationBlockingOnePerDay.startsAt),
+            to: formatTimeTegucigalpa(dayReservationBlockingOnePerDay.endsAt),
+          })}
+        </p>
+      ) : availableStartHours.length === 0 ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 md:col-span-2">
-          No hay horas disponibles para esta zona en la fecha seleccionada.
+          {t("zone.noHoursDate")}
         </p>
       ) : null}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600 md:col-span-2">
-        <p className="mb-2 font-semibold text-slate-800">Horas ocupadas del dia (tachadas)</p>
+        <p className="mb-2 font-semibold text-slate-800">{t("zone.occupiedHeading")}</p>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
           {HOURS.map((hour) => {
             const occupied = occupiedHours.has(hour);
@@ -218,9 +255,12 @@ export function CreateZoneReservationForm({
         disabled={isPending || availableStartHours.length === 0 || maxSelectableDuration <= 0}
         className="btn-primary md:col-span-2 md:w-max disabled:opacity-60"
       >
-        {isPending ? "Reservando..." : "Reservar zona"}
+        {isPending ? t("zone.reserving") : t("zone.reserve")}
       </button>
-      {message ? <p className="text-sm text-slate-700 md:col-span-2">{message}</p> : null}
+      {state?.ok === false && state.message && !isZoneReservationTakenByResidentState(state) ? (
+        <p className="text-sm text-slate-700 md:col-span-2">{state.message}</p>
+      ) : null}
     </form>
+    </>
   );
 }

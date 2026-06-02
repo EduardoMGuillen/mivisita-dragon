@@ -152,7 +152,7 @@ export function GuardShiftCard({
           : `Tienes checkpoint vencido desde hace ${overdueMinutes} min. Marca nuevamente tu checkpoint.`;
 
       try {
-        const notification = new Notification("Control Dragon - Marcaje laboral", {
+        const notification = new Notification("MiVisita - Dragon Seguridad - Marcaje laboral", {
           body: message,
           icon: "/dragonlogo.jpg",
         });

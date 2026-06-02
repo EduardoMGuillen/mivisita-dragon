@@ -17,7 +17,7 @@ export function ServiceContractForm({
     legalRepresentative: "",
     representativeEmail: "",
     representativePhone: "",
-    servicePlan: "Plan Control Dragon",
+    servicePlan: "Plan MiVisita - Dragon Seguridad",
     monthlyAmount: "",
     startsOn: "",
     endsOn: "",

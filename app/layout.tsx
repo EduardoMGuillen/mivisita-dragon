@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PwaBootstrap } from "@/app/components/pwa-bootstrap";
+import { GlobalSiteBanner } from "@/app/components/global-site-banner";
+import { SiteFooter } from "@/app/components/site-footer";
+import { getActiveSiteBanner } from "@/lib/site-banner";
+import { getPublicAppUrl } from "@/lib/get-public-app-url";
+import { APP_DISPLAY_NAME, LOGO_PARTNER } from "@/lib/branding";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,14 +19,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://miporton.vercel.app"),
-  title: "Control Dragon",
-  applicationName: "Control Dragon",
-  description: "Webapp de control de visitas con QR para residenciales.",
+  metadataBase: new URL(getPublicAppUrl()),
+  title: APP_DISPLAY_NAME,
+  applicationName: APP_DISPLAY_NAME,
+  description:
+    "Control de visitas residenciales con QR. Plataforma MiVisita en colaboracion white label con Dragon Seguridad.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Control Dragon",
+    title: APP_DISPLAY_NAME,
     statusBarStyle: "default",
   },
   formatDetection: {
@@ -30,11 +35,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/dragonlogo.jpg", sizes: "192x192", type: "image/jpeg" },
-      { url: "/dragonlogo.jpg", sizes: "512x512", type: "image/jpeg" },
+      { url: LOGO_PARTNER, sizes: "192x192", type: "image/jpeg" },
+      { url: LOGO_PARTNER, sizes: "512x512", type: "image/jpeg" },
     ],
-    apple: [{ url: "/dragonlogo.jpg", sizes: "180x180", type: "image/jpeg" }],
-    shortcut: ["/dragonlogo.jpg"],
+    apple: [{ url: LOGO_PARTNER, sizes: "180x180", type: "image/jpeg" }],
+    shortcut: [LOGO_PARTNER],
   },
 };
 
@@ -47,11 +52,13 @@ export const viewport: Viewport = {
   themeColor: "#1d4ed8",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteBanner = await getActiveSiteBanner();
+
   return (
     <html lang="es">
       <body
@@ -59,29 +66,11 @@ export default function RootLayout({
       >
         <PwaBootstrap />
         <div className="flex min-h-screen flex-col">
+          {siteBanner ? (
+            <GlobalSiteBanner message={siteBanner.message} variant={siteBanner.variant} />
+          ) : null}
           <div className="flex-1">{children}</div>
-          <footer className="border-t border-white/60 bg-white/70 px-4 py-5 text-center text-sm text-slate-600 backdrop-blur">
-            <p>
-              Powered by{" "}
-              <a
-                href="https://www.nexusglobalsuministros.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-slate-900 transition hover:text-blue-700 hover:underline"
-              >
-                Nexus Global
-              </a>
-            </p>
-            <p className="mt-2 text-xs text-slate-500">
-              <Link href="/politicas-de-privacidad" className="hover:text-slate-800 hover:underline">
-                Politicas de Privacidad
-              </Link>
-              <span className="mx-2">|</span>
-              <Link href="/terminos-de-uso" className="hover:text-slate-800 hover:underline">
-                Terminos de Uso
-              </Link>
-            </p>
-          </footer>
+          <SiteFooter />
         </div>
       </body>
     </html>

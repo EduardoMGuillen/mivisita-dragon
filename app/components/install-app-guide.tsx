@@ -107,7 +107,7 @@ export function InstallAppGuide({
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/50 p-4">
           <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-slate-900">Agregar Control Dragon a inicio</h3>
+              <h3 className="text-lg font-semibold text-slate-900">Agregar MiVisita - Dragon Seguridad a inicio</h3>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
@@ -142,7 +142,7 @@ export function InstallAppGuide({
               <div className="rounded-xl border border-slate-200 p-3">
                 <p className="text-sm font-semibold text-slate-900">Android (Chrome/Edge)</p>
                 <ol className="mt-2 space-y-1 text-xs text-slate-600">
-                  <li>1. Abre Control Dragon en el navegador.</li>
+                  <li>1. Abre MiVisita - Dragon Seguridad en el navegador.</li>
                   <li>2. Toca el menu del navegador (3 puntos).</li>
                   <li>3. Pulsa &quot;Instalar app&quot; o &quot;Agregar a pantalla de inicio&quot;.</li>
                   <li>4. Confirma para crear el icono en Home.</li>
@@ -151,7 +151,7 @@ export function InstallAppGuide({
               <div className="rounded-xl border border-slate-200 p-3">
                 <p className="text-sm font-semibold text-slate-900">iPhone / iPad (Safari)</p>
                 <ol className="mt-2 space-y-1 text-xs text-slate-600">
-                  <li>1. Abre Control Dragon en Safari.</li>
+                  <li>1. Abre MiVisita - Dragon Seguridad en Safari.</li>
                   <li>2. Pulsa el boton Compartir.</li>
                   <li>3. Selecciona &quot;Agregar a pantalla de inicio&quot;.</li>
                   <li>4. Confirma en &quot;Agregar&quot;.</li>

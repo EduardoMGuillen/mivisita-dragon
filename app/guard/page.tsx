@@ -36,103 +36,128 @@ export default async function GuardPage() {
 
   const { start: todayStart, end: todayEnd } = tegucigalpaTodayRange();
 
-  const activeInvites = await prisma.qrCode.findMany({
-    where: {
-      residentialId: session.residentialId,
-      isRevoked: false,
-      validUntil: { gte: new Date() },
-    },
-    include: {
-      resident: { select: { fullName: true } },
-      scans: {
-        where: { isValid: true },
-        orderBy: { scannedAt: "desc" },
-        take: 1,
-        select: { scannedAt: true, reason: true },
+  const [
+    activeInvites,
+    guardGeneratedEntries,
+    postaPendingExitsForGuard,
+    recentRegisteredAnnouncements,
+    todayZoneReservations,
+    residentialSettings,
+    residents,
+    openShift,
+  ] = await Promise.all([
+    prisma.qrCode.findMany({
+      where: {
+        residentialId: session.residentialId,
+        isRevoked: false,
+        validUntil: { gte: new Date() },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 40,
-  });
-  const guardGeneratedEntries = await prisma.qrCode.findMany({
-    where: {
-      residentialId: session.residentialId,
-      description: {
-        startsWith: GUARD_POSTA_DESCRIPTION_PREFIX,
+      include: {
+        resident: { select: { fullName: true } },
+        scans: {
+          where: { isValid: true },
+          orderBy: { scannedAt: "desc" },
+          take: 1,
+          select: { scannedAt: true, reason: true },
+        },
       },
-    },
-    include: {
-      resident: { select: { fullName: true } },
-      scans: {
-        where: { isValid: true },
-        orderBy: { scannedAt: "desc" },
-        take: 1,
-        select: { id: true, scannedAt: true, exitedAt: true, scannerId: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
-  const postaPendingExitsForGuard = await prisma.qrScan.findMany({
-    where: {
-      isValid: true,
-      exitedAt: null,
-      scannerId: session.userId,
-      code: {
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.qrCode.findMany({
+      where: {
         residentialId: session.residentialId,
         description: { startsWith: GUARD_POSTA_DESCRIPTION_PREFIX },
       },
-    },
-    orderBy: { scannedAt: "desc" },
-    take: 25,
-    select: {
-      id: true,
-      scannedAt: true,
-      code: {
-        select: {
-          visitorName: true,
-          resident: { select: { fullName: true } },
+      include: {
+        resident: { select: { fullName: true } },
+        scans: {
+          where: { isValid: true },
+          orderBy: { scannedAt: "desc" },
+          take: 1,
+          select: { id: true, scannedAt: true, exitedAt: true, scannerId: true },
         },
       },
-    },
-  });
-  const recentRegisteredAnnouncements = await prisma.qrScan.findMany({
-    where: {
-      isValid: true,
-      code: { residentialId: session.residentialId },
-    },
-    orderBy: { scannedAt: "desc" },
-    take: 20,
-    select: {
-      id: true,
-      scannedAt: true,
-      reason: true,
-      scanner: { select: { fullName: true } },
-      code: {
-        select: {
-          visitorName: true,
-          resident: { select: { fullName: true } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.qrScan.findMany({
+      where: {
+        isValid: true,
+        exitedAt: null,
+        scannerId: session.userId,
+        code: {
+          residentialId: session.residentialId,
+          description: { startsWith: GUARD_POSTA_DESCRIPTION_PREFIX },
         },
       },
-    },
-  });
-  const todayZoneReservations = await prisma.zoneReservation.findMany({
-    where: {
-      residentialId: session.residentialId,
-      status: "APPROVED",
-      startsAt: { gte: todayStart, lt: todayEnd },
-    },
-    include: {
-      zone: { select: { name: true } },
-      resident: { select: { fullName: true } },
-    },
-    orderBy: { startsAt: "asc" },
-    take: 80,
-  });
+      orderBy: { scannedAt: "desc" },
+      take: 25,
+      select: {
+        id: true,
+        scannedAt: true,
+        code: {
+          select: {
+            visitorName: true,
+            resident: { select: { fullName: true } },
+          },
+        },
+      },
+    }),
+    prisma.qrScan.findMany({
+      where: {
+        isValid: true,
+        code: { residentialId: session.residentialId },
+      },
+      orderBy: { scannedAt: "desc" },
+      take: 15,
+      select: {
+        id: true,
+        scannedAt: true,
+        reason: true,
+        scanner: { select: { fullName: true } },
+        code: {
+          select: {
+            visitorName: true,
+            resident: { select: { fullName: true } },
+          },
+        },
+      },
+    }),
+    prisma.zoneReservation.findMany({
+      where: {
+        residentialId: session.residentialId,
+        status: "APPROVED",
+        startsAt: { gte: todayStart, lt: todayEnd },
+      },
+      include: {
+        zone: { select: { name: true } },
+        resident: { select: { fullName: true } },
+      },
+      orderBy: { startsAt: "asc" },
+      take: 30,
+    }),
+    prisma.residential.findUnique({
+      where: { id: session.residentialId },
+      select: {
+        enablePostaDeliveries: true,
+        enableResidentQrVehicleType: true,
+        enableResidentQrVehicleCompanions: true,
+      },
+    }),
+    prisma.user.findMany({
+      where: {
+        residentialId: session.residentialId,
+        role: "RESIDENT",
+      },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: "asc" },
+      take: 100,
+    }),
+    GUARD_SHIFT_ENFORCEMENT_ENABLED ? getOpenGuardShift(session.userId) : Promise.resolve(null),
+  ]);
+
   const pendingInvites = activeInvites.filter((invite) => invite.scans.length === 0);
-  const openShift = GUARD_SHIFT_ENFORCEMENT_ENABLED
-    ? await getOpenGuardShift(session.userId)
-    : null;
   const nextHeartbeatAt =
     GUARD_SHIFT_ENFORCEMENT_ENABLED && openShift ? getNextHeartbeatAt(openShift) : null;
   const now = new Date();
@@ -140,24 +165,7 @@ export default async function GuardPage() {
     GUARD_SHIFT_ENFORCEMENT_ENABLED && nextHeartbeatAt
       ? now.getTime() > nextHeartbeatAt.getTime()
       : false;
-  const residentialSettings = await prisma.residential.findUnique({
-    where: { id: session.residentialId },
-    select: {
-      enablePostaDeliveries: true,
-      enableResidentQrVehicleType: true,
-      enableResidentQrVehicleCompanions: true,
-    },
-  });
   const showPostaDeliveries = Boolean(residentialSettings?.enablePostaDeliveries);
-  const residents = await prisma.user.findMany({
-    where: {
-      residentialId: session.residentialId,
-      role: "RESIDENT",
-    },
-    select: { id: true, fullName: true },
-    orderBy: { fullName: "asc" },
-    take: 100,
-  });
 
   return (
     <DashboardShell

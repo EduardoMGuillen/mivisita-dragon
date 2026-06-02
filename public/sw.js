@@ -9,7 +9,7 @@ self.addEventListener("push", (event) => {
           client.postMessage({ type: "MI_VISITA_NEW_VISIT" });
         }
       }),
-      self.registration.showNotification(payload.title || "Control Dragon", {
+      self.registration.showNotification(payload.title || "MiVisita - Dragon Seguridad", {
         body: payload.body || "Tienes una nueva notificacion.",
         icon: "/dragonlogo.jpg",
         data: { url: payload.url || "/resident" },

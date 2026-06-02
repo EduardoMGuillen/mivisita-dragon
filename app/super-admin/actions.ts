@@ -3,8 +3,10 @@
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { SiteBannerVariant } from "@prisma/client";
 import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
+import { SITE_BANNER_ID } from "@/lib/site-banner";
 
 const RESIDENTIAL_ADMIN_DELETE_SECURITY_PASSWORD = "Guillen01..";
 
@@ -254,4 +256,47 @@ export async function updateResidentialGeoFenceAction(formData: FormData) {
 
   revalidatePath("/super-admin");
   revalidatePath("/super-admin/guard-attendance");
+}
+
+const updateSiteBannerSchema = z.object({
+  message: z.string().max(500, "El mensaje es demasiado largo (max 500 caracteres)."),
+  variant: z.nativeEnum(SiteBannerVariant),
+});
+
+export async function updateSiteBannerAction(_prevState: string | null, formData: FormData) {
+  await requireRole(["SUPER_ADMIN"]);
+
+  const enabled = formData.get("bannerEnabled") === "on";
+  const messageRaw = String(formData.get("message") ?? "");
+  const variantRaw = String(formData.get("variant") ?? "INFO");
+  const parsed = updateSiteBannerSchema.safeParse({ message: messageRaw, variant: variantRaw });
+  if (!parsed.success) {
+    return parsed.error.issues[0]?.message ?? "Datos invalidos.";
+  }
+
+  const message = parsed.data.message.trim();
+  if (enabled && !message) {
+    return "Con el banner activado debes escribir un mensaje.";
+  }
+
+  const variant = parsed.data.variant;
+
+  await prisma.siteBanner.upsert({
+    where: { id: SITE_BANNER_ID },
+    create: {
+      id: SITE_BANNER_ID,
+      enabled,
+      message: enabled ? message : "",
+      variant,
+    },
+    update: {
+      enabled,
+      message: enabled ? message : "",
+      variant,
+    },
+  });
+
+  revalidatePath("/", "layout");
+  revalidatePath("/super-admin/banner");
+  return enabled ? "Banner activo y guardado correctamente." : "Banner desactivado.";
 }

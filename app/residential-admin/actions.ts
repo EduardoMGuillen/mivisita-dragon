@@ -5,6 +5,9 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/authorization";
+import { decryptOtp, encryptOtp } from "@/lib/otp-crypto";
+import { DEFAULT_RESIDENT_OTP } from "@/lib/otp-default";
+import { generateResidentOneTimePassword } from "@/lib/otp-generator";
 import { prisma } from "@/lib/prisma";
 import { calculateValidityWindow } from "@/lib/qr";
 import { notifyUser } from "@/lib/push";
@@ -25,6 +28,10 @@ const updateUserSchema = z.object({
   password: z.string().optional(),
   residentCategory: z.enum(["OWNER", "TENANT"]).optional(),
   houseNumber: z.string().max(30, "Numero de vivienda demasiado largo.").optional(),
+});
+
+const residentialOtpSchema = z.object({
+  userId: z.string().min(1),
 });
 
 const toggleUserSuspensionSchema = z.object({
@@ -161,6 +168,9 @@ export async function createResidentialUserAction(_prevState: string | null, for
   });
 
   revalidatePath("/residential-admin");
+  if (parsed.data.role === "RESIDENT") {
+    return `Usuario creado correctamente. OTP inicial default: ${DEFAULT_RESIDENT_OTP}`;
+  }
   return "Usuario creado correctamente.";
 }
 
@@ -268,6 +278,162 @@ export async function toggleResidentialUserSuspensionAction(formData: FormData) 
 
   revalidatePath("/residential-admin");
   revalidatePath("/residential-admin/usuarios");
+}
+
+export async function generateResidentialOneTimePasswordAction(_prevState: string | null, formData: FormData) {
+  const session = await requireRole(["RESIDENTIAL_ADMIN"]);
+  if (!session.residentialId) return "Sesion invalida sin residencial asociada.";
+
+  const parsed = residentialOtpSchema.safeParse({
+    userId: formData.get("userId"),
+  });
+  if (!parsed.success) return "Residente invalido.";
+
+  const target = await prisma.user.findFirst({
+    where: {
+      id: parsed.data.userId,
+      residentialId: session.residentialId,
+      role: "RESIDENT",
+    },
+    select: { id: true },
+  });
+  if (!target) return "Residente no encontrado.";
+
+  const plainOtp = generateResidentOneTimePassword();
+  await prisma.user.update({
+    where: { id: target.id },
+    data: {
+      oneTimePasswordCipher: encryptOtp(plainOtp),
+      oneTimePasswordCreatedAt: new Date(),
+      oneTimePasswordCreatedById: session.userId,
+    },
+  });
+
+  revalidatePath("/residential-admin/usuarios");
+  return `OTP actual: ${plainOtp}`;
+}
+
+export async function revealResidentialOneTimePasswordAction(_prevState: string | null, formData: FormData) {
+  const session = await requireRole(["RESIDENTIAL_ADMIN"]);
+  if (!session.residentialId) return "Sesion invalida sin residencial asociada.";
+
+  const parsed = residentialOtpSchema.safeParse({
+    userId: formData.get("userId"),
+  });
+  if (!parsed.success) return "Residente invalido.";
+
+  const target = await prisma.user.findFirst({
+    where: {
+      id: parsed.data.userId,
+      residentialId: session.residentialId,
+      role: "RESIDENT",
+    },
+    select: {
+      oneTimePasswordCipher: true,
+    },
+  });
+  if (!target) return "Residente no encontrado.";
+
+  if (!target.oneTimePasswordCipher) {
+    return `OTP actual (default): ${DEFAULT_RESIDENT_OTP}`;
+  }
+
+  try {
+    const plainOtp = decryptOtp(target.oneTimePasswordCipher);
+    return `OTP actual (personal): ${plainOtp}`;
+  } catch {
+    return "No se pudo descifrar la OTP de este residente.";
+  }
+}
+
+export async function resetResidentialOneTimePasswordToDefaultAction(formData: FormData) {
+  const session = await requireRole(["RESIDENTIAL_ADMIN"]);
+  if (!session.residentialId) return;
+
+  const parsed = residentialOtpSchema.safeParse({
+    userId: formData.get("userId"),
+  });
+  if (!parsed.success) return;
+
+  await prisma.user.updateMany({
+    where: {
+      id: parsed.data.userId,
+      residentialId: session.residentialId,
+      role: "RESIDENT",
+    },
+    data: {
+      oneTimePasswordCipher: null,
+      oneTimePasswordCreatedAt: null,
+      oneTimePasswordCreatedById: null,
+    },
+  });
+
+  revalidatePath("/residential-admin/usuarios");
+}
+
+export type CopyResidentialCredentialsResult =
+  | null
+  | { ok: true; text: string }
+  | { ok: false; message: string };
+
+export async function buildResidentialUserCredentialsCopyMessageAction(
+  _prev: CopyResidentialCredentialsResult,
+  formData: FormData,
+): Promise<CopyResidentialCredentialsResult> {
+  const session = await requireRole(["RESIDENTIAL_ADMIN"]);
+  if (!session.residentialId) {
+    return { ok: false, message: "Sesión inválida sin residencial asociada." };
+  }
+
+  const parsed = residentialOtpSchema.safeParse({
+    userId: formData.get("userId"),
+  });
+  if (!parsed.success) {
+    return { ok: false, message: "Usuario inválido." };
+  }
+
+  const residential = await prisma.residential.findUnique({
+    where: { id: session.residentialId },
+    select: { name: true },
+  });
+  if (!residential) {
+    return { ok: false, message: "Residencial no encontrada." };
+  }
+
+  const target = await prisma.user.findFirst({
+    where: {
+      id: parsed.data.userId,
+      residentialId: session.residentialId,
+      role: { in: ["RESIDENT", "GUARD"] },
+    },
+    select: {
+      fullName: true,
+      email: true,
+      role: true,
+      oneTimePasswordCipher: true,
+    },
+  });
+  if (!target) {
+    return { ok: false, message: "Usuario no encontrado." };
+  }
+
+  if (target.role === "RESIDENT") {
+    let otpPlain: string;
+    if (!target.oneTimePasswordCipher) {
+      otpPlain = DEFAULT_RESIDENT_OTP;
+    } else {
+      try {
+        otpPlain = decryptOtp(target.oneTimePasswordCipher);
+      } catch {
+        return { ok: false, message: "No se pudo leer la contraseña temporal (OTP) de este residente." };
+      }
+    }
+    const text = `Residente ${target.fullName} de ${residential.name}: estas son tus credenciales MiVisita - Dragon Seguridad — Usuario: ${target.email} — Contraseña temporal (OTP, un solo ingreso): ${otpPlain}.`;
+    return { ok: true, text };
+  }
+
+  const text = `Guardia ${target.fullName} de ${residential.name}: tu usuario MiVisita - Dragon Seguridad es ${target.email}. La contraseña es la que asignó la administración al crear tu cuenta; si no la recuerdas, solicita al administrador que la restablezca.`;
+  return { ok: true, text };
 }
 
 export async function createZoneAction(_prevState: string | null, formData: FormData) {

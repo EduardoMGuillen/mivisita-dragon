@@ -480,7 +480,7 @@ export async function announceDeliveryAtGateAction(_prevState: string | null, fo
   });
 
   await notifyUser(resident.id, {
-    title: "Control Dragon",
+    title: "MiVisita - Dragon Seguridad",
     body: `Guardia: hay un delivery para ti. Detalle: ${trimmedNote}`,
     url: "/resident",
   });

@@ -60,7 +60,7 @@ export function EntryRecordExportButton({
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
-      doc.text("Registro de acceso - Control Dragon", 40, 48);
+      doc.text("Registro de acceso - MiVisita - Dragon Seguridad", 40, 48);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);

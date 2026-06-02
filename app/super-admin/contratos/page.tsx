@@ -1,6 +1,8 @@
 import { Card } from "@/app/components/shell";
+import { InvoiceGenerator } from "@/app/super-admin/invoice-generator";
 import { QuotationGenerator } from "@/app/super-admin/quotation-generator";
 import { ServiceContractForm } from "@/app/super-admin/service-contract-form";
+import { APP_DISPLAY_NAME } from "@/lib/branding";
 import { ServiceContractPrintButton } from "@/app/super-admin/service-contract-print-button";
 import { requireRole } from "@/lib/authorization";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
@@ -25,10 +27,18 @@ export default async function SuperAdminContractsPage() {
       <Card>
         <h2 className="mb-2 text-lg font-semibold text-slate-900">Crear cotizacion</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Genera una cotizacion PDF a nombre de Dragon Seguridad para el servicio Control Dragon - Seguridad
-          Residencial.
+          Genera una cotizacion PDF para el servicio {APP_DISPLAY_NAME} (white label Dragon Seguridad sobre
+          MiVisita).
         </p>
         <QuotationGenerator />
+      </Card>
+
+      <Card>
+        <h2 className="mb-2 text-lg font-semibold text-slate-900">Crear factura</h2>
+        <p className="mb-4 text-sm text-slate-600">
+          Factura PDF formal a nombre de Nexus Global: residencial, periodo de cobro e instrucciones de pago.
+        </p>
+        <InvoiceGenerator residentials={residentials.map((item) => ({ id: item.id, name: item.name }))} />
       </Card>
 
       <Card>

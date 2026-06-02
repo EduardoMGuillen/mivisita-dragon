@@ -58,6 +58,14 @@ enum GuardShiftMarkType {
   HEARTBEAT
 }
 
+enum SiteBannerVariant {
+  INFO
+  SUCCESS
+  WARNING
+  ALERT
+  NEUTRAL
+}
+
 model Residential {
   id            String               @id @default(cuid())
   name          String
@@ -94,13 +102,19 @@ model User {
   id                      String                      @id @default(cuid())
   fullName                String
   email                   String                      @unique
+  personalEmail           String?
+  phoneNumber             String?
   passwordHash            String
+  oneTimePasswordCipher   String?
+  oneTimePasswordCreatedAt DateTime?
+  oneTimePasswordCreatedById String?
   role                    Role
   isSuspended             Boolean                     @default(false)
   suspendedAt             DateTime?
   residentCategory        ResidentCategory        @default(OWNER)
   houseNumber             String?
   createdAt               DateTime                    @default(now())
+  lastLoginAt             DateTime?
   residentialId           String?
   residential             Residential?                @relation(fields: [residentialId], references: [id], onDelete: Cascade)
   createdCodes            QrCode[]                    @relation("CreatedByResident")
@@ -115,6 +129,24 @@ model User {
   createdServiceContracts ServiceContract[]           @relation("ServiceContractCreatedBy")
   residentSuggestions     ResidentSuggestion[]
   guardShifts             GuardShift[]
+  oneTimePasswordCreatedBy User?                      @relation("ResidentialOtpCreatedBy", fields: [oneTimePasswordCreatedById], references: [id], onDelete: SetNull)
+  otpCreatedForUsers      User[]                      @relation("ResidentialOtpCreatedBy")
+  passwordResetTokens     PasswordResetToken[]
+
+  @@index([residentialId, lastLoginAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model QrCode {
@@ -359,4 +391,12 @@ model GuardShiftMark {
 
   @@index([shiftId, markedAt])
   @@index([isAnomalous, markedAt])
+}
+
+model SiteBanner {
+  id        String            @id @default("global")
+  enabled   Boolean           @default(false)
+  message   String            @default("")
+  variant   SiteBannerVariant @default(INFO)
+  updatedAt DateTime          @updatedAt
 }

@@ -204,7 +204,7 @@ export async function generateServiceContractPdf(input: ServiceContractPdfInput)
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   const standardTerms = [
-    "El servicio Control Dragon se provee para control de acceso y gestion de visitas en la residencial contratante.",
+    "El servicio MiVisita - Dragon Seguridad se provee para control de acceso y gestion de visitas en la residencial contratante.",
     "Dragon Seguridad brindara soporte tecnico en horario laboral y atencion de incidentes criticos conforme al plan contratado.",
     "La residencial se compromete a usar la plataforma de forma licita, proteger sus credenciales y reportar accesos no autorizados.",
     "El incumplimiento de pagos por mas de 30 dias habilita suspension temporal del servicio hasta regularizacion.",
@@ -251,7 +251,7 @@ export async function generateServiceContractPdf(input: ServiceContractPdfInput)
   doc.setFontSize(8.5);
   doc.setTextColor(90, 102, 121);
   doc.text(
-    "Documento generado por Control Dragon. Este contrato puede complementarse con anexos comerciales o tecnicos.",
+    "Documento generado por MiVisita - Dragon Seguridad. Este contrato puede complementarse con anexos comerciales o tecnicos.",
     40,
     820,
   );

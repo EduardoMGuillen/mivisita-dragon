@@ -1,24 +1,33 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
+import { BrandLockup } from "@/app/components/brand-lockup";
+import { LandingLeadForm } from "@/app/components/landing-lead-form";
 import { StandaloneLoginRedirect } from "@/app/components/standalone-login-redirect";
+import {
+  APP_DISPLAY_NAME,
+  LOGO_PARTNER,
+  PARTNER_NAME,
+  PRODUCT_ENGINE_NAME,
+  PRODUCT_ENGINE_URL,
+  whiteLabelAttribution,
+} from "@/lib/branding";
+import { getPublicAppUrl } from "@/lib/get-public-app-url";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://miporton.vercel.app";
+const APP_URL = getPublicAppUrl();
 
 export const metadata: Metadata = {
-  title: "Control Dragon | Control de acceso residencial inteligente",
+  title: `${APP_DISPLAY_NAME} | Control de acceso residencial`,
   description:
-    "Control Dragon digitaliza acceso residencial con QR, reservas de zonas, notificaciones push y reportes operativos para residentes, guardias y administradores.",
+    `${APP_DISPLAY_NAME}: plataforma MiVisita en colaboracion white label con ${PARTNER_NAME}. QR, reservas, push y reportes para residentes, guardias y administradores.`,
   keywords: [
+    "mi visita",
+    "dragon seguridad",
     "control de acceso",
     "residencial",
     "visitas",
     "qr",
-    "posta de seguridad",
-    "seguridad residencial",
-    "control dragon",
+    "white label",
     "reservas de zonas",
-    "reporte mensual",
   ],
   alternates: {
     canonical: "/",
@@ -26,30 +35,30 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: APP_URL,
-    title: "Control Dragon | Seguridad y control de visitas",
+    title: `${APP_DISPLAY_NAME} | Seguridad y control de visitas`,
     description:
-      "Gestiona visitas con QR, reservas de zonas, valida ingresos en la posta de seguridad y mantente informado al instante.",
-    siteName: "Control Dragon",
+      "Gestiona visitas con QR, reservas de zonas y notificaciones en tiempo real. Motor MiVisita, operacion Dragon Seguridad.",
+    siteName: APP_DISPLAY_NAME,
     images: [
       {
-        url: "/dragonlogo.jpg",
+        url: LOGO_PARTNER,
         width: 1024,
         height: 1024,
-        alt: "Logo Control Dragon",
+        alt: APP_DISPLAY_NAME,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Control Dragon | Control de acceso residencial",
+    title: `${APP_DISPLAY_NAME} | Control de acceso residencial`,
     description:
-      "Invitaciones QR, reservas de zonas, validacion en entrada y notificaciones en tiempo real para residenciales.",
-    images: ["/dragonlogo.jpg"],
+      "Invitaciones QR, reservas de zonas y validacion en entrada. Plataforma MiVisita con Dragon Seguridad.",
+    images: [LOGO_PARTNER],
   },
   icons: {
-    icon: [{ url: "/dragonlogo.jpg", sizes: "any", type: "image/jpeg" }],
-    shortcut: ["/dragonlogo.jpg"],
-    apple: [{ url: "/dragonlogo.jpg", sizes: "180x180", type: "image/jpeg" }],
+    icon: [{ url: LOGO_PARTNER, sizes: "any", type: "image/jpeg" }],
+    shortcut: [LOGO_PARTNER],
+    apple: [{ url: LOGO_PARTNER, sizes: "180x180", type: "image/jpeg" }],
   },
 };
 
@@ -57,7 +66,7 @@ export default async function Home() {
   const landingJsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Control Dragon",
+    name: APP_DISPLAY_NAME,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web, Android, iOS",
     offers: {
@@ -77,21 +86,8 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(landingJsonLd) }}
       />
-      <header className="surface-card flex items-center justify-between px-5 py-3">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/dragonlogo.jpg"
-            alt="Logo Control Dragon"
-            width={40}
-            height={40}
-            className="rounded-lg"
-            priority
-          />
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Control Dragon</p>
-            <p className="text-xs text-slate-500">Acceso residencial inteligente</p>
-          </div>
-        </div>
+      <header className="surface-card flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+        <BrandLockup showEngineNote />
         <nav className="flex items-center gap-3">
           <Link
             href="/login?install=1"
@@ -108,15 +104,14 @@ export default async function Home() {
       <section className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <article className="surface-card p-8">
           <p className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-            Plataforma de seguridad residencial
+            {PARTNER_NAME} · motor {PRODUCT_ENGINE_NAME}
           </p>
           <h1 className="mt-4 text-4xl font-bold leading-tight text-slate-900 md:text-5xl">
             Tu entrada residencial, digital y controlada
           </h1>
           <p className="mt-4 text-base leading-7 text-slate-600">
-            Control Dragon conecta residentes, guardias y administradores para controlar ingresos con QR,
-            notificaciones en vivo y registro de evidencias. Menos llamadas, menos confusion y mas
-            seguridad operativa.
+            {APP_DISPLAY_NAME} conecta residentes, guardias y administradores para controlar ingresos con QR,
+            notificaciones en vivo y registro de evidencias. {whiteLabelAttribution()}
           </p>
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -158,7 +153,7 @@ export default async function Home() {
         </article>
 
         <article className="surface-card p-8">
-          <h2 className="text-2xl font-bold text-slate-900">Como funciona Control Dragon</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Como funciona {APP_DISPLAY_NAME}</h2>
           <ol className="mt-4 space-y-4 text-sm text-slate-700">
             <li>
               <p className="font-semibold text-slate-900">1) Residente crea la invitacion</p>
@@ -251,6 +246,21 @@ export default async function Home() {
             <li>- Retencion de evidencia sensible por politica de 60 dias.</li>
           </ul>
         </article>
+      </section>
+
+      <section className="mt-6 surface-card p-8">
+        <h2 className="text-2xl font-bold text-slate-900">¿Te interesa para tu residencial?</h2>
+        <p className="mt-2 max-w-2xl text-sm text-slate-600">
+          Deja tus datos y el equipo de {PARTNER_NAME} o {PRODUCT_ENGINE_NAME} te contactara. Esta instancia
+          opera sobre{" "}
+          <a href={PRODUCT_ENGINE_URL} className="font-semibold text-blue-700 hover:underline">
+            {PRODUCT_ENGINE_NAME}.app
+          </a>
+          .
+        </p>
+        <div className="mt-6 max-w-lg">
+          <LandingLeadForm />
+        </div>
       </section>
     </main>
   );

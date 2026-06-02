@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     if (result.valid && result.residentId && result.visitorName) {
       await notifyUser(result.residentId, {
-        title: "Control Dragon",
+        title: "MiVisita - Dragon Seguridad",
         body: `Tu visita (${result.visitorName}) ha llegado!`,
         url: "/resident",
       });

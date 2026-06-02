@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { jsPDF } from "jspdf";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
+import { APP_DISPLAY_NAME, LOGO_MIVISITA, LOGO_PARTNER, PARTNER_NAME } from "@/lib/branding";
 
 type PaymentType = "MENSUAL" | "SEMESTRAL" | "ANUAL";
 
@@ -92,11 +93,18 @@ export function QuotationGenerator() {
 
     setIsGenerating(true);
     try {
-      const dragonLogo = await optimizeImageToJpegDataUrl("/dragonlogo.jpg", {
-        maxWidth: 240,
-        maxHeight: 240,
-        quality: 0.68,
-      }).catch(() => null);
+      const [dragonLogo, miVisitaLogo] = await Promise.all([
+        optimizeImageToJpegDataUrl(LOGO_PARTNER, {
+          maxWidth: 240,
+          maxHeight: 240,
+          quality: 0.68,
+        }).catch(() => null),
+        optimizeImageToJpegDataUrl(LOGO_MIVISITA, {
+          maxWidth: 200,
+          maxHeight: 200,
+          quality: 0.68,
+        }).catch(() => null),
+      ]);
 
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       const quoteNumber = `COT-${Date.now()}`;
@@ -105,6 +113,9 @@ export function QuotationGenerator() {
       if (dragonLogo) {
         doc.addImage(dragonLogo, "JPEG", 40, 25, 70, 70);
       }
+      if (miVisitaLogo) {
+        doc.addImage(miVisitaLogo, "JPEG", 500, 25, 55, 55);
+      }
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
@@ -112,8 +123,8 @@ export function QuotationGenerator() {
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
-      doc.text("Empresa emisora: Dragon Seguridad", 40, 142);
-      doc.text("Servicio: Control Dragon - Seguridad Residencial", 40, 160);
+      doc.text(`Empresa emisora: ${PARTNER_NAME}`, 40, 142);
+      doc.text(`Servicio: ${APP_DISPLAY_NAME}`, 40, 160);
       doc.text(`No. de cotizacion: ${quoteNumber}`, 40, 178);
       doc.text(`Fecha: ${createdAtLabel}`, 40, 196);
 
@@ -147,7 +158,7 @@ export function QuotationGenerator() {
       doc.line(40, 495, 560, 495);
       doc.setFontSize(10);
       doc.text(
-        "Esta cotizacion fue generada por Control Dragon para fines comerciales de Dragon Seguridad.",
+        `Cotizacion ${APP_DISPLAY_NAME} (white label MiVisita + ${PARTNER_NAME}).`,
         40,
         515,
       );

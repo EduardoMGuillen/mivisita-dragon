@@ -1,125 +1,46 @@
 import { NextResponse } from "next/server";
-import JSZip from "jszip";
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { buildDatabaseBackupZip } from "@/lib/database-backup-zip";
 
-function toBase64(value: Uint8Array | Buffer | null) {
-  if (!value) return null;
-  return Buffer.from(value).toString("base64");
-}
+/** Allow long runs on Vercel Pro+; Hobby stays capped by plan (~10s) — backup con imagenes suele fallar ahi; usar `npm run backup:db` en local. */
+export const maxDuration = 120;
+export const runtime = "nodejs";
 
-function toIsoOrNull(value: Date | null) {
-  return value ? value.toISOString() : null;
-}
-
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getSession();
   if (!session || session.role !== "SUPER_ADMIN") {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 
-  const [
-    residentials,
-    users,
-    qrCodes,
-    qrScans,
-    pushSubscriptions,
-    zones,
-    zoneReservations,
-    zoneBlocks,
-    deliveries,
-    adminAnnouncements,
-    adminAnnouncementRecipients,
-    serviceContracts,
-    residentSuggestions,
-  ] = await Promise.all([
-    prisma.residential.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.qrCode.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.qrScan.findMany({ orderBy: { scannedAt: "asc" } }),
-    prisma.pushSubscription.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.zone.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.zoneReservation.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.zoneBlock.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.deliveryAnnouncement.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.adminAnnouncement.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.adminAnnouncementRecipient.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.serviceContract.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.residentSuggestion.findMany({ orderBy: { createdAt: "asc" } }),
-  ]);
+  const { searchParams } = new URL(request.url);
+  const skipEvidence =
+    searchParams.get("skipEvidence") === "1" ||
+    searchParams.get("skipEvidence") === "true";
 
-  const serializedQrScans = qrScans.map((scan) => ({
-    ...scan,
-    scannedAt: scan.scannedAt.toISOString(),
-    idCapturedAt: toIsoOrNull(scan.idCapturedAt),
-    idPhotoDataBase64: toBase64(scan.idPhotoData as unknown as Uint8Array | null),
-    platePhotoDataBase64: toBase64(scan.platePhotoData as unknown as Uint8Array | null),
-    idPhotoData: undefined,
-    platePhotoData: undefined,
-  }));
+  try {
+    const { buffer, fileName } = await buildDatabaseBackupZip({
+      skipEvidence,
+      author: { fullName: session.fullName, userId: session.userId },
+    });
 
-  const zip = new JSZip();
-  const generatedAt = new Date();
-  zip.file(
-    "manifest.json",
-    JSON.stringify(
-      {
-        generatedAt: generatedAt.toISOString(),
-        generatedBy: session.fullName,
-        generatedByUserId: session.userId,
-        scope: "full-database-backup",
-        counts: {
-          residentials: residentials.length,
-          users: users.length,
-          qrCodes: qrCodes.length,
-          qrScans: qrScans.length,
-          pushSubscriptions: pushSubscriptions.length,
-          zones: zones.length,
-          zoneReservations: zoneReservations.length,
-          zoneBlocks: zoneBlocks.length,
-          deliveries: deliveries.length,
-          adminAnnouncements: adminAnnouncements.length,
-          adminAnnouncementRecipients: adminAnnouncementRecipients.length,
-          serviceContracts: serviceContracts.length,
-          residentSuggestions: residentSuggestions.length,
-        },
+    return new NextResponse(new Uint8Array(buffer), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Cache-Control": "no-store",
       },
-      null,
-      2,
-    ),
-  );
-
-  zip.file("data/residentials.json", JSON.stringify(residentials, null, 2));
-  zip.file("data/users.json", JSON.stringify(users, null, 2));
-  zip.file("data/qr-codes.json", JSON.stringify(qrCodes, null, 2));
-  zip.file("data/qr-scans.json", JSON.stringify(serializedQrScans, null, 2));
-  zip.file("data/push-subscriptions.json", JSON.stringify(pushSubscriptions, null, 2));
-  zip.file("data/zones.json", JSON.stringify(zones, null, 2));
-  zip.file("data/zone-reservations.json", JSON.stringify(zoneReservations, null, 2));
-  zip.file("data/zone-blocks.json", JSON.stringify(zoneBlocks, null, 2));
-  zip.file("data/delivery-announcements.json", JSON.stringify(deliveries, null, 2));
-  zip.file("data/admin-announcements.json", JSON.stringify(adminAnnouncements, null, 2));
-  zip.file(
-    "data/admin-announcement-recipients.json",
-    JSON.stringify(adminAnnouncementRecipients, null, 2),
-  );
-  zip.file("data/service-contracts.json", JSON.stringify(serviceContracts, null, 2));
-  zip.file("data/resident-suggestions.json", JSON.stringify(residentSuggestions, null, 2));
-
-  const zipBuffer = await zip.generateAsync({
-    type: "nodebuffer",
-    compression: "DEFLATE",
-    compressionOptions: { level: 6 },
-  });
-  const body = new Uint8Array(zipBuffer);
-  const fileName = `control-dragon-database-backup-${generatedAt.toISOString().slice(0, 10)}.zip`;
-
-  return new NextResponse(body, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${fileName}"`,
-      "Cache-Control": "no-store",
-    },
-  });
+    });
+  } catch (error) {
+    console.error("[database-backup]", error);
+    const detail = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error:
+          "No se pudo generar el backup de base de datos. Reintenta en unos minutos. Si persiste, puede ser por volumen de datos o limite de tiempo del plan de hosting; prueba el backup sin evidencia, npm run backup:db en tu PC con DATABASE_URL de produccion, o el backup PDF.",
+        detail,
+      },
+      { status: 500 },
+    );
+  }
 }

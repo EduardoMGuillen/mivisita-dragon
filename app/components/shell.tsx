@@ -1,38 +1,56 @@
+import type { ReactNode } from "react";
+import { APP_DISPLAY_NAME } from "@/lib/branding";
 import { logoutAction } from "@/app/login/actions";
 import { RefreshButton } from "@/app/components/refresh-button";
-import { ConfirmPendingSubmitButton } from "@/app/components/pending-submit-button";
+import { LogoutSubmitButton } from "@/app/components/logout-submit-button";
 
 export function DashboardShell({
   title,
   subtitle,
   user,
+  headerRight,
+  showActiveSession = true,
+  compactHeaderActions = false,
   children,
 }: {
   title: string;
   subtitle: string;
   user: string;
-  children: React.ReactNode;
+  headerRight?: ReactNode;
+  showActiveSession?: boolean;
+  compactHeaderActions?: boolean;
+  children: ReactNode;
 }) {
+  const headerClass = compactHeaderActions
+    ? "surface-card relative z-50 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 p-5 sm:gap-4 md:p-6"
+    : "surface-card relative z-50 flex flex-col gap-4 p-5 sm:flex-row sm:flex-nowrap sm:items-start sm:justify-between sm:gap-4 md:p-6";
+  const titleBlockClass = compactHeaderActions
+    ? "min-w-0 space-y-1 pr-2"
+    : "min-w-0 flex-1 space-y-1 sm:pr-2";
+  const actionsClass = compactHeaderActions
+    ? "flex shrink-0 items-center justify-end gap-2"
+    : "flex w-full shrink-0 flex-wrap items-center gap-2 border-t border-slate-100 pt-3 sm:w-auto sm:justify-end sm:border-0 sm:pt-0";
+
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 md:py-8">
-      <header className="surface-card flex flex-wrap items-end justify-between gap-4 p-5 md:p-6">
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-blue-700">Control Dragon</p>
+      <header className={headerClass}>
+        <div className={titleBlockClass}>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-blue-700">{APP_DISPLAY_NAME}</p>
           <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">{title}</h1>
           <p className="text-sm text-slate-600">{subtitle}</p>
-          <p className="mt-2 text-xs text-slate-500">Sesion activa: {user}</p>
+          {showActiveSession ? (
+            <p className="mt-2 text-xs text-slate-500">Sesion activa: {user}</p>
+          ) : null}
         </div>
-        <div className="flex items-center gap-2">
-          <RefreshButton />
-          <form action={logoutAction}>
-            <ConfirmPendingSubmitButton
-              confirmMessage="¿Seguro que deseas cerrar sesion?"
-              pendingText="Cerrando sesion..."
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:opacity-60"
-            >
-              Cerrar sesion
-            </ConfirmPendingSubmitButton>
-          </form>
+        <div className={actionsClass}>
+          {headerRight ?? (
+            <>
+              <RefreshButton />
+              <form action={logoutAction}>
+                <LogoutSubmitButton />
+              </form>
+            </>
+          )}
         </div>
       </header>
       {children}
@@ -40,6 +58,6 @@ export function DashboardShell({
   );
 }
 
-export function Card({ children }: { children: React.ReactNode }) {
+export function Card({ children }: { children: ReactNode }) {
   return <section className="surface-card p-5 md:p-6">{children}</section>;
 }
