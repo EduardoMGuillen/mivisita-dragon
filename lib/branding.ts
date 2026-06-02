@@ -7,7 +7,10 @@ export const PRODUCT_ENGINE_URL = "https://mivisita.app";
 export const PARTNER_NAME = "Dragon Seguridad";
 export const PARTNER_TAGLINE = "Colaboración white label";
 
+/** Logo completo (PDF, OG). */
 export const LOGO_MIVISITA = "/logomivisita.png";
+/** Logo liviano para UI web (evita PNG de varios MB en landing). */
+export const LOGO_MIVISITA_UI = "/icon-192.png";
 export const LOGO_PARTNER = "/dragonlogo.jpg";
 
 export const FOOTER_MIVISITA_LABEL = "MiVisita.app";
