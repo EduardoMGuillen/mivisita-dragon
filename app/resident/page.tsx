@@ -271,47 +271,6 @@ export default async function ResidentPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">Visita en curso (Posta de Seguridad)</h2>
-        <p className="mb-3 text-sm text-slate-600">
-          Entradas registradas por la posta a tu nombre con ingreso ya marcado. Salida pendiente hasta que el oficial la
-          registre.
-        </p>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {postaVisitsOpen.map((invite) => (
-            <article
-              key={invite.id}
-              className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 ring-1 ring-amber-100"
-            >
-              <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
-                Posta de Seguridad
-              </span>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={invite.image}
-                alt={`QR de ${invite.visitorName}`}
-                className="mx-auto mt-2 h-40 w-40 rounded-lg bg-white p-2 shadow-sm"
-              />
-              <p className="mt-3 text-sm font-semibold text-slate-900">{invite.visitorName}</p>
-              <p className="text-xs text-slate-600">{validityLabel(invite.validityType)}</p>
-              <p className="text-xs font-medium text-amber-900">
-                Entrada:{" "}
-                {invite.latestScan ? formatDateTimeTegucigalpa(invite.latestScan.scannedAt) : "—"} · Salida pendiente
-              </p>
-              <p className="text-xs text-slate-500">
-                Tipo de acceso: {invite.hasVehicle ? "Vehiculo" : "Acceso peatonal"}
-              </p>
-              <p className="text-xs text-slate-500">
-                Referencia codigo: <span className="break-all font-mono">MP:{invite.code}</span>
-              </p>
-            </article>
-          ))}
-          {postaVisitsOpen.length === 0 ? (
-            <p className="text-sm text-slate-600">No tienes visitas en curso registradas por la posta.</p>
-          ) : null}
-        </div>
-      </Card>
-
-      <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">QRs activos</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {activeInvites.map((invite) => (
@@ -365,6 +324,47 @@ export default async function ResidentPage() {
           ))}
           {activeInvites.length === 0 ? (
             <p className="text-sm text-slate-600">No tienes QRs activos ahora mismo.</p>
+          ) : null}
+        </div>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Visita en curso (Posta de Seguridad)</h2>
+        <p className="mb-3 text-sm text-slate-600">
+          Entradas registradas por la posta a tu nombre con ingreso ya marcado. Salida pendiente hasta que el oficial la
+          registre.
+        </p>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {postaVisitsOpen.map((invite) => (
+            <article
+              key={invite.id}
+              className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 ring-1 ring-amber-100"
+            >
+              <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
+                Posta de Seguridad
+              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={invite.image}
+                alt={`QR de ${invite.visitorName}`}
+                className="mx-auto mt-2 h-40 w-40 rounded-lg bg-white p-2 shadow-sm"
+              />
+              <p className="mt-3 text-sm font-semibold text-slate-900">{invite.visitorName}</p>
+              <p className="text-xs text-slate-600">{validityLabel(invite.validityType)}</p>
+              <p className="text-xs font-medium text-amber-900">
+                Entrada:{" "}
+                {invite.latestScan ? formatDateTimeTegucigalpa(invite.latestScan.scannedAt) : "—"} · Salida pendiente
+              </p>
+              <p className="text-xs text-slate-500">
+                Tipo de acceso: {invite.hasVehicle ? "Vehiculo" : "Acceso peatonal"}
+              </p>
+              <p className="text-xs text-slate-500">
+                Referencia codigo: <span className="break-all font-mono">MP:{invite.code}</span>
+              </p>
+            </article>
+          ))}
+          {postaVisitsOpen.length === 0 ? (
+            <p className="text-sm text-slate-600">No tienes visitas en curso registradas por la posta.</p>
           ) : null}
         </div>
       </Card>
