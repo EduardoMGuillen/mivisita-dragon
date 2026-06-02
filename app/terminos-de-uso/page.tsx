@@ -56,8 +56,22 @@ export default async function TermsPage() {
       <section className="space-y-2 text-sm text-slate-700">
         <h2 className="text-lg font-semibold text-slate-900">6. Propiedad intelectual</h2>
         <p>
-          El software, diseno, logica y componentes asociados son propiedad de Nexus Global o sus licenciantes. El
-          cliente recibe un derecho de uso no exclusivo y revocable conforme al acuerdo comercial aplicable.
+          Todo el codigo fuente, diseno, arquitectura, logica de negocio, interfaces y componentes que integran esta
+          plataforma son propiedad exclusiva de <strong>Nexus Global</strong>. Esta instancia opera bajo un modelo
+          white label: Nexus Global presta el servicio tecnologico a <strong>Dragon Seguridad</strong> para su
+          operacion local, sin que ello implique transferencia de propiedad intelectual ni derechos sobre el software
+          a Dragon Seguridad ni a sus usuarios finales.
+        </p>
+        <p>
+          Dragon Seguridad tiene derecho a usar la plataforma bajo los terminos del acuerdo comercial vigente entre
+          las partes. Dicho derecho es no exclusivo, no transferible y revocable conforme a lo pactado. Ninguna
+          disposicion de estos terminos debe interpretarse como concesion de licencia, patente o derecho de autor
+          sobre el software subyacente.
+        </p>
+        <p>
+          El motor tecnologico de la plataforma es <strong>MiVisita</strong> (mivisita.app), desarrollado y mantenido
+          por Nexus Global. Queda prohibida la ingenieria inversa, descompilacion, copia, redistribucion o cualquier
+          uso del software fuera del proposito operativo autorizado.
         </p>
       </section>
 

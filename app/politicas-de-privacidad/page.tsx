@@ -92,7 +92,23 @@ export default async function PrivacyPolicyPage() {
       </section>
 
       <section className="space-y-2 text-sm text-slate-700">
-        <h2 className="text-lg font-semibold text-slate-900">10. Cambios en esta politica</h2>
+        <h2 className="text-lg font-semibold text-slate-900">10. Propiedad intelectual y modelo white label</h2>
+        <p>
+          Esta plataforma, incluyendo su codigo fuente, diseno, interfaces y logica de operacion, es propiedad
+          exclusiva de <strong>Nexus Global</strong>. La presente instancia opera como un servicio white label
+          prestado a <strong>Dragon Seguridad</strong>, quien utiliza la tecnologia de Nexus Global para ofrecer
+          el servicio a sus clientes residenciales.
+        </p>
+        <p>
+          La relacion entre Nexus Global y Dragon Seguridad es de prestacion de servicios tecnologicos. Nexus Global
+          conserva en todo momento la titularidad sobre el software, base de datos, infraestructura y propiedad
+          intelectual asociada. Dragon Seguridad no adquiere derechos de propiedad sobre la plataforma ni sobre
+          ninguno de sus componentes.
+        </p>
+      </section>
+
+      <section className="space-y-2 text-sm text-slate-700">
+        <h2 className="text-lg font-semibold text-slate-900">11. Cambios en esta politica</h2>
         <p>
           Podemos actualizar esta politica cuando sea necesario. El uso continuo de la plataforma despues de cambios
           publicados implica aceptacion de la version vigente.
