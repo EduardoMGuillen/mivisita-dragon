@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { EvidencePhotoField } from "@/app/components/evidence-photo-field";
-import { optimizeImageForUpload } from "@/lib/optimize-image-upload";
+import { optimizeEvidencePhoto } from "@/lib/optimize-image-upload";
 
 type ScanResult = {
   valid: boolean;
@@ -89,9 +89,9 @@ export function GuardQrScanner() {
     setError(null);
 
     try {
-      const optimizedIdPhoto = await optimizeImageForUpload(idPhotoFile);
+      const optimizedIdPhoto = await optimizeEvidencePhoto(idPhotoFile);
       const optimizedPlatePhoto = platePhotoFile
-        ? await optimizeImageForUpload(platePhotoFile)
+        ? await optimizeEvidencePhoto(platePhotoFile)
         : null;
 
       const formData = new FormData();

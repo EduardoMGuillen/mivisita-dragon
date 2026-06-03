@@ -72,7 +72,7 @@ export function EvidencePhotoField({
           )}
         </span>
       </div>
-      <p className="text-xs text-slate-500">JPG, PNG o WEBP. Maximo 5MB (se optimiza al enviar).</p>
+      <p className="text-xs text-slate-500">Se comprime automaticamente (~400 KB max) para guardar en servidor.</p>
     </div>
   );
 }

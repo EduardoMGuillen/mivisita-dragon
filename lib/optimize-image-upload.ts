@@ -1,4 +1,15 @@
-const DEFAULT_MAX_IMAGE_UPLOAD_BYTES = 1200 * 1024;
+import {
+  EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
+  EVIDENCE_PHOTO_TARGET_BYTES,
+  SELFIE_PHOTO_MAX_LONGEST_SIDE,
+  SELFIE_PHOTO_TARGET_BYTES,
+} from "@/lib/image-upload-policy";
+
+type OptimizeImageOptions = {
+  maxBytes: number;
+  maxLongestSide: number;
+  initialQuality?: number;
+};
 
 function fileNameToJpeg(name: string) {
   const lastDot = name.lastIndexOf(".");
@@ -42,22 +53,39 @@ async function canvasToJpegBlob(
   return blob;
 }
 
+function resolveOptions(input?: number | OptimizeImageOptions): OptimizeImageOptions {
+  if (typeof input === "number") {
+    return {
+      maxBytes: input,
+      maxLongestSide: EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
+      initialQuality: 0.82,
+    };
+  }
+  return {
+    maxBytes: input?.maxBytes ?? EVIDENCE_PHOTO_TARGET_BYTES,
+    maxLongestSide: input?.maxLongestSide ?? EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
+    initialQuality: input?.initialQuality ?? 0.82,
+  };
+}
+
 export async function optimizeImageForUpload(
   file: File,
-  maxBytes = DEFAULT_MAX_IMAGE_UPLOAD_BYTES,
+  options?: number | OptimizeImageOptions,
 ): Promise<File> {
+  const { maxBytes, maxLongestSide, initialQuality } = resolveOptions(options);
+
   if (file.size > 0 && file.size <= maxBytes && file.type === "image/jpeg") {
     return file;
   }
 
   const image = await loadImageElement(file);
   const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
-  const initialScale = longestSide > 1920 ? 1920 / longestSide : 1;
+  const initialScale = longestSide > maxLongestSide ? maxLongestSide / longestSide : 1;
   let scale = initialScale;
-  let quality = 0.86;
+  let quality = initialQuality ?? 0.82;
   let bestBlob: Blob | null = null;
 
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
     const width = image.naturalWidth * scale;
     const height = image.naturalHeight * scale;
     const candidateBlob = await canvasToJpegBlob(image, width, height, quality);
@@ -69,11 +97,11 @@ export async function optimizeImageForUpload(
       });
     }
 
-    if (quality > 0.5) {
-      quality -= 0.12;
+    if (quality > 0.42) {
+      quality -= 0.1;
     } else {
-      scale *= 0.82;
-      quality = Math.max(0.44, quality - 0.04);
+      scale *= 0.78;
+      quality = Math.max(0.38, quality - 0.04);
     }
   }
 
@@ -84,5 +112,23 @@ export async function optimizeImageForUpload(
   return new File([bestBlob], fileNameToJpeg(file.name), {
     type: "image/jpeg",
     lastModified: Date.now(),
+  });
+}
+
+/** ID y placa: ~400 KB, 1280px max. */
+export function optimizeEvidencePhoto(file: File) {
+  return optimizeImageForUpload(file, {
+    maxBytes: EVIDENCE_PHOTO_TARGET_BYTES,
+    maxLongestSide: EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
+    initialQuality: 0.82,
+  });
+}
+
+/** Selfies de turno: ~320 KB, 960px max. */
+export function optimizeSelfiePhoto(file: File) {
+  return optimizeImageForUpload(file, {
+    maxBytes: SELFIE_PHOTO_TARGET_BYTES,
+    maxLongestSide: SELFIE_PHOTO_MAX_LONGEST_SIDE,
+    initialQuality: 0.78,
   });
 }

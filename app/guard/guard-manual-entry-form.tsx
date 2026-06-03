@@ -3,7 +3,7 @@
 import { useActionState, useState, type FormEvent } from "react";
 import { EvidencePhotoField } from "@/app/components/evidence-photo-field";
 import { createManualVisitByGuardAction } from "@/app/guard/actions";
-import { optimizeImageForUpload } from "@/lib/optimize-image-upload";
+import { optimizeEvidencePhoto } from "@/lib/optimize-image-upload";
 
 const initialState: string | null = null;
 
@@ -36,7 +36,7 @@ export function GuardManualEntryForm({
         setSubmitError("Debes capturar la evidencia de identificacion del visitante.");
         return;
       }
-      formData.set("idPhoto", await optimizeImageForUpload(idPhoto));
+      formData.set("idPhoto", await optimizeEvidencePhoto(idPhoto));
 
       const hasVehicleChecked = formData.get("hasVehicle") === "on";
       if (hasVehicleChecked) {
@@ -45,7 +45,7 @@ export function GuardManualEntryForm({
           setSubmitError("Debes capturar la evidencia de placa porque la visita viene en vehiculo.");
           return;
         }
-        formData.set("platePhoto", await optimizeImageForUpload(platePhoto));
+        formData.set("platePhoto", await optimizeEvidencePhoto(platePhoto));
       } else {
         formData.delete("platePhoto");
       }

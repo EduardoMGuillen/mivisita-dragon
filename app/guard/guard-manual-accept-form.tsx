@@ -3,7 +3,7 @@
 import { useActionState, useState, type FormEvent } from "react";
 import { EvidencePhotoField } from "@/app/components/evidence-photo-field";
 import { acceptAnnouncedVisitAction } from "@/app/guard/actions";
-import { optimizeImageForUpload } from "@/lib/optimize-image-upload";
+import { optimizeEvidencePhoto } from "@/lib/optimize-image-upload";
 
 const initialState: string | null = null;
 
@@ -33,7 +33,7 @@ export function GuardManualAcceptForm({
         setSubmitError("Debes capturar la evidencia de identificacion.");
         return;
       }
-      formData.set("idPhoto", await optimizeImageForUpload(idPhoto));
+      formData.set("idPhoto", await optimizeEvidencePhoto(idPhoto));
 
       if (hasVehicle) {
         const platePhoto = formData.get("platePhoto");
@@ -41,7 +41,7 @@ export function GuardManualAcceptForm({
           setSubmitError("Debes capturar la evidencia de placa.");
           return;
         }
-        formData.set("platePhoto", await optimizeImageForUpload(platePhoto));
+        formData.set("platePhoto", await optimizeEvidencePhoto(platePhoto));
       } else {
         formData.delete("platePhoto");
       }
