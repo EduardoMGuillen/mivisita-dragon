@@ -324,11 +324,15 @@ export async function createManualVisitByGuardAction(_prevState: string | null, 
     return error instanceof Error ? error.message : "No se pudo registrar la entrada con evidencia.";
   }
 
-  await notifyUser(resident.id, {
-    title: "Posta de Seguridad creo un QR por ti",
-    body: `${session.fullName} registro la entrada de "${visitorName}" a tu nombre (ingreso ya marcado en posta). Revisa tu app.`,
-    url: "/resident",
-  });
+  try {
+    await notifyUser(resident.id, {
+      title: "Posta de Seguridad creo un QR por ti",
+      body: `${session.fullName} registro la entrada de "${visitorName}" a tu nombre (ingreso ya marcado en posta). Revisa tu app.`,
+      url: "/resident",
+    });
+  } catch {
+    // La entrada ya quedo registrada; el push es opcional.
+  }
 
   revalidatePath("/guard");
   revalidatePath("/resident");

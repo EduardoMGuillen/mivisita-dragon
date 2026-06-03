@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { EvidencePhotoField } from "@/app/components/evidence-photo-field";
+import { optimizeImageForUpload } from "@/lib/optimize-image-upload";
 
 type ScanResult = {
   valid: boolean;
@@ -16,92 +18,6 @@ type ScanResult = {
   residentId?: string | null;
 };
 type ScanMode = "entry" | "exit";
-
-const MAX_IMAGE_UPLOAD_BYTES = 1200 * 1024;
-
-function fileNameToJpeg(name: string) {
-  const lastDot = name.lastIndexOf(".");
-  if (lastDot <= 0) return `${name}.jpg`;
-  return `${name.slice(0, lastDot)}.jpg`;
-}
-
-function loadImageElement(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const imageUrl = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(imageUrl);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(imageUrl);
-      reject(new Error("No se pudo leer la imagen."));
-    };
-    image.src = imageUrl;
-  });
-}
-
-async function canvasToJpegBlob(
-  image: HTMLImageElement,
-  width: number,
-  height: number,
-  quality: number,
-): Promise<Blob> {
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(width));
-  canvas.height = Math.max(1, Math.round(height));
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("No se pudo preparar la compresion de imagen.");
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob((result) => resolve(result), "image/jpeg", quality);
-  });
-  if (!blob) throw new Error("No se pudo convertir la imagen.");
-  return blob;
-}
-
-async function optimizeImageForUpload(file: File, maxBytes = MAX_IMAGE_UPLOAD_BYTES): Promise<File> {
-  if (file.size > 0 && file.size <= maxBytes && file.type === "image/jpeg") {
-    return file;
-  }
-
-  const image = await loadImageElement(file);
-  const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
-  const initialScale = longestSide > 1920 ? 1920 / longestSide : 1;
-  let scale = initialScale;
-  let quality = 0.86;
-  let bestBlob: Blob | null = null;
-
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const width = image.naturalWidth * scale;
-    const height = image.naturalHeight * scale;
-    const candidateBlob = await canvasToJpegBlob(image, width, height, quality);
-    bestBlob = candidateBlob;
-    if (candidateBlob.size <= maxBytes) {
-      return new File([candidateBlob], fileNameToJpeg(file.name), {
-        type: "image/jpeg",
-        lastModified: Date.now(),
-      });
-    }
-
-    if (quality > 0.5) {
-      quality -= 0.12;
-    } else {
-      scale *= 0.82;
-      quality = Math.max(0.44, quality - 0.04);
-    }
-  }
-
-  if (!bestBlob) {
-    throw new Error("No se pudo optimizar la imagen.");
-  }
-
-  return new File([bestBlob], fileNameToJpeg(file.name), {
-    type: "image/jpeg",
-    lastModified: Date.now(),
-  });
-}
 
 export function GuardQrScanner() {
   type ScannerInstance = {
@@ -410,33 +326,17 @@ export function GuardQrScanner() {
               </p>
             ) : null}
 
-            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Foto del ID
-            </label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              onChange={(event) => setIdPhotoFile(event.target.files?.[0] ?? null)}
-              className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
+            <EvidencePhotoField
+              className="mt-4 grid gap-2"
+              label="Foto del ID"
+              onFileChange={(file) => setIdPhotoFile(file)}
             />
-            <p className="mt-2 text-xs text-slate-500">
-              Formatos: JPG, PNG o WEBP. Maximo 5MB por archivo (se optimiza automaticamente antes de enviar).
-            </p>
-
             {pendingResult?.hasVehicle ? (
-              <>
-                <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Foto de placa
-                </label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  capture="environment"
-                  onChange={(event) => setPlatePhotoFile(event.target.files?.[0] ?? null)}
-                  className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700"
-                />
-              </>
+              <EvidencePhotoField
+                className="mt-4 grid gap-2"
+                label="Foto de placa"
+                onFileChange={(file) => setPlatePhotoFile(file)}
+              />
             ) : null}
             {idCaptureError ? <p className="mt-2 text-sm text-red-600">{idCaptureError}</p> : null}
 
