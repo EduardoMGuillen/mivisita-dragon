@@ -9,6 +9,7 @@ import { deleteInviteQrAction } from "@/app/resident/actions";
 import { QrShareActions } from "@/app/resident/qr-share-actions";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
 import { isGuardPostaQr } from "@/lib/guard-posta";
+import { autoCloseStalePostaVisits } from "@/lib/guard-posta-auto-exit";
 
 type InviteWithImage = {
   id: string;
@@ -52,6 +53,9 @@ function allowedValidityTypesFromResidential(r: {
 
 export default async function ResidentPage() {
   const session = await requireRole(["RESIDENT"]);
+  if (session.residentialId) {
+    await autoCloseStalePostaVisits({ residentialId: session.residentialId });
+  }
   const residential = session.residentialId
     ? await prisma.residential.findUnique({
         where: { id: session.residentialId },
@@ -225,52 +229,6 @@ export default async function ResidentPage() {
       </Card>
 
       <Card>
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">Reservar zona comun</h2>
-        <CreateZoneReservationForm
-          zones={zones.map((zone) => ({
-            id: zone.id,
-            name: zone.name,
-            maxHoursPerReservation: zone.maxHoursPerReservation,
-            oneReservationPerDay: zone.oneReservationPerDay,
-            scheduleStartHour: zone.scheduleStartHour,
-            scheduleEndHour: zone.scheduleEndHour,
-          }))}
-          occupiedSlots={zoneOccupiedSlots}
-        />
-
-        <div className="mt-4 grid gap-2">
-          {reservations.map((reservation) => (
-            <div key={reservation.id} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
-              <p className="text-sm font-semibold text-slate-900">{reservation.zone.name}</p>
-              <p className="text-xs text-slate-600">
-                {formatDateTimeTegucigalpa(reservation.startsAt)} - {formatDateTimeTegucigalpa(reservation.endsAt)}
-              </p>
-              {reservation.note ? <p className="text-xs text-slate-500">Nota: {reservation.note}</p> : null}
-              <ReservationRowActions
-                reservationId={reservation.id}
-                zoneId={reservation.zone.id}
-                zoneName={reservation.zone.name}
-                startsAtIso={reservation.startsAt.toISOString()}
-                endsAtIso={reservation.endsAt.toISOString()}
-                note={reservation.note}
-                residentialName={residential?.name}
-                zone={{
-                  maxHoursPerReservation: reservation.zone.maxHoursPerReservation,
-                  oneReservationPerDay: reservation.zone.oneReservationPerDay,
-                  scheduleStartHour: reservation.zone.scheduleStartHour,
-                  scheduleEndHour: reservation.zone.scheduleEndHour,
-                }}
-                occupiedSlots={zoneOccupiedSlots}
-              />
-            </div>
-          ))}
-          {reservations.length === 0 ? (
-            <p className="text-sm text-slate-600">Aun no tienes reservas activas.</p>
-          ) : null}
-        </div>
-      </Card>
-
-      <Card>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">QRs activos</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {activeInvites.map((invite) => (
@@ -426,6 +384,52 @@ export default async function ResidentPage() {
             ) : null}
           </div>
         </details>
+      </Card>
+
+      <Card>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Reservar zona comun</h2>
+        <CreateZoneReservationForm
+          zones={zones.map((zone) => ({
+            id: zone.id,
+            name: zone.name,
+            maxHoursPerReservation: zone.maxHoursPerReservation,
+            oneReservationPerDay: zone.oneReservationPerDay,
+            scheduleStartHour: zone.scheduleStartHour,
+            scheduleEndHour: zone.scheduleEndHour,
+          }))}
+          occupiedSlots={zoneOccupiedSlots}
+        />
+
+        <div className="mt-4 grid gap-2">
+          {reservations.map((reservation) => (
+            <div key={reservation.id} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+              <p className="text-sm font-semibold text-slate-900">{reservation.zone.name}</p>
+              <p className="text-xs text-slate-600">
+                {formatDateTimeTegucigalpa(reservation.startsAt)} - {formatDateTimeTegucigalpa(reservation.endsAt)}
+              </p>
+              {reservation.note ? <p className="text-xs text-slate-500">Nota: {reservation.note}</p> : null}
+              <ReservationRowActions
+                reservationId={reservation.id}
+                zoneId={reservation.zone.id}
+                zoneName={reservation.zone.name}
+                startsAtIso={reservation.startsAt.toISOString()}
+                endsAtIso={reservation.endsAt.toISOString()}
+                note={reservation.note}
+                residentialName={residential?.name}
+                zone={{
+                  maxHoursPerReservation: reservation.zone.maxHoursPerReservation,
+                  oneReservationPerDay: reservation.zone.oneReservationPerDay,
+                  scheduleStartHour: reservation.zone.scheduleStartHour,
+                  scheduleEndHour: reservation.zone.scheduleEndHour,
+                }}
+                occupiedSlots={zoneOccupiedSlots}
+              />
+            </div>
+          ))}
+          {reservations.length === 0 ? (
+            <p className="text-sm text-slate-600">Aun no tienes reservas activas.</p>
+          ) : null}
+        </div>
       </Card>
 
     </>

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import {
   APP_DISPLAY_NAME,
-  LOGO_MIVISITA,
+  LOGO_MIVISITA_UI,
   LOGO_PARTNER,
   PARTNER_NAME,
   PRODUCT_ENGINE_NAME,
@@ -19,20 +19,22 @@ export function BrandLockup({ compact = false, showEngineNote = false }: BrandLo
     <div className="flex items-center gap-3">
       <div className="flex items-center -space-x-1">
         <Image
-          src={LOGO_MIVISITA}
+          src={LOGO_MIVISITA_UI}
           alt={PRODUCT_ENGINE_NAME}
           width={logoSize}
           height={logoSize}
-          className="rounded-lg border border-white bg-white shadow-sm"
+          className="rounded-lg border border-slate-200 bg-white"
           priority
+          sizes={`${logoSize}px`}
         />
         <Image
           src={LOGO_PARTNER}
           alt={PARTNER_NAME}
           width={logoSize}
           height={logoSize}
-          className="rounded-lg border border-white shadow-sm"
-          priority
+          className="rounded-lg border border-slate-200"
+          loading="lazy"
+          sizes={`${logoSize}px`}
         />
       </div>
       <div>

@@ -42,3 +42,10 @@ next-env.d.ts
 
 /app/generated/prisma
 dev.db
+
+# SQL local con credenciales de seed (no subir)
+prisma/supabase-full-setup.sql
+
+# Copias locales / componentes obsoletos (no subir)
+**/*.miporton
+app/components/landing-lead-section.tsx

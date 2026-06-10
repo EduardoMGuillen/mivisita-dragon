@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/app/components/shell";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
+import { GUARD_SHIFT_ENFORCEMENT_ENABLED } from "@/lib/guard-shift";
 
 function getSingleParam(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value[0] ?? "";
@@ -101,6 +102,47 @@ export default async function GuardAttendancePage({
 
   return (
     <>
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Estado del marcaje de guardias</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              El modulo de marcaje laboral esta{" "}
+              <span className={GUARD_SHIFT_ENFORCEMENT_ENABLED ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
+                {GUARD_SHIFT_ENFORCEMENT_ENABLED ? "ACTIVADO" : "DESACTIVADO"}
+              </span>{" "}
+              a nivel de sistema. Actualmente no se exige turno ni checkpoints para operar ingresos/salidas.
+            </p>
+            {!GUARD_SHIFT_ENFORCEMENT_ENABLED ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Cuando decidas que el flujo esta apto para produccion, podemos activar este control para que sea
+                obligatorio marcar inicio de turno y checkpoints.
+              </p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            disabled
+            className={
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold " +
+              (GUARD_SHIFT_ENFORCEMENT_ENABLED
+                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                : "border-amber-300 bg-amber-50 text-amber-800")
+            }
+          >
+            <span
+              className={
+                "inline-flex h-4 w-7 items-center rounded-full " +
+                (GUARD_SHIFT_ENFORCEMENT_ENABLED ? "bg-emerald-500 justify-end" : "bg-slate-300 justify-start")
+              }
+            >
+              <span className="h-3 w-3 rounded-full bg-white shadow" />
+            </span>
+            {GUARD_SHIFT_ENFORCEMENT_ENABLED ? "Marcaje activo" : "Marcaje desactivado"}
+          </button>
+        </div>
+      </Card>
+
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-slate-900">Filtro de asistencia</h2>

@@ -549,12 +549,6 @@ export async function markPostaVisitExitAction(
     },
   });
 
-  await notifyUser(scan.code.resident.id, {
-    title: "Posta de Seguridad: salida registrada",
-    body: `Se registro la salida de la visita ${scan.code.visitorName}.`,
-    url: "/resident",
-  });
-
   revalidatePath("/guard");
   revalidatePath("/resident");
   return `Salida registrada para ${scan.code.visitorName}.`;

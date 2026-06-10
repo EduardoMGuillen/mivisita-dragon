@@ -16,6 +16,12 @@ import {
   GUARD_SHIFT_ENFORCEMENT_ENABLED,
 } from "@/lib/guard-shift";
 import { GUARD_POSTA_DESCRIPTION_PREFIX } from "@/lib/guard-posta";
+import {
+  autoCloseStalePostaVisits,
+  POSTA_AUTO_EXIT_NOTE,
+  POSTA_RECENT_ENTRIES_LIMIT,
+  postaRecentEntriesCutoff,
+} from "@/lib/guard-posta-auto-exit";
 
 function tegucigalpaTodayRange(now = new Date()) {
   const tegucigalpaOffsetHours = 6;
@@ -35,6 +41,9 @@ export default async function GuardPage() {
   }
 
   const { start: todayStart, end: todayEnd } = tegucigalpaTodayRange();
+  const postaRecentCutoff = postaRecentEntriesCutoff();
+
+  await autoCloseStalePostaVisits({ residentialId: session.residentialId });
 
   const [
     activeInvites,
@@ -68,6 +77,7 @@ export default async function GuardPage() {
       where: {
         residentialId: session.residentialId,
         description: { startsWith: GUARD_POSTA_DESCRIPTION_PREFIX },
+        createdAt: { gte: postaRecentCutoff },
       },
       include: {
         resident: { select: { fullName: true } },
@@ -75,11 +85,11 @@ export default async function GuardPage() {
           where: { isValid: true },
           orderBy: { scannedAt: "desc" },
           take: 1,
-          select: { id: true, scannedAt: true, exitedAt: true, scannerId: true },
+          select: { id: true, scannedAt: true, exitedAt: true, scannerId: true, exitNote: true },
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 20,
+      take: POSTA_RECENT_ENTRIES_LIMIT,
     }),
     prisma.qrScan.findMany({
       where: {
@@ -92,7 +102,7 @@ export default async function GuardPage() {
         },
       },
       orderBy: { scannedAt: "desc" },
-      take: 25,
+      take: 15,
       select: {
         id: true,
         scannedAt: true,
@@ -243,6 +253,10 @@ export default async function GuardPage() {
         <h3 className="mt-5 text-sm font-semibold uppercase tracking-wide text-slate-700">
           Entradas generadas por Posta (recientes)
         </h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Ultimas {POSTA_RECENT_ENTRIES_LIMIT} entradas de los ultimos 3 dias. Si no se marca salida manual en 48h,
+          el sistema la cierra automaticamente.
+        </p>
         <div className="mt-2 grid gap-3 md:grid-cols-2">
           {guardGeneratedEntries.map((entry) => {
             const scan = entry.scans[0];
@@ -276,7 +290,10 @@ export default async function GuardPage() {
                       Entrada: {formatDateTimeTegucigalpa(scan.scannedAt)}
                     </p>
                     <p className="text-xs text-slate-600">
-                      Salida: {scan.exitedAt ? formatDateTimeTegucigalpa(scan.exitedAt) : "Pendiente"}
+                      Salida:{" "}
+                      {scan.exitedAt
+                        ? `${formatDateTimeTegucigalpa(scan.exitedAt)}${scan.exitNote === POSTA_AUTO_EXIT_NOTE ? " (auto)" : ""}`
+                        : "Pendiente"}
                     </p>
                   </>
                 ) : null}
