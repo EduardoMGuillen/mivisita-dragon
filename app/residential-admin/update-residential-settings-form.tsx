@@ -11,6 +11,8 @@ export function UpdateResidentialSettingsForm({
   allowResidentQrOneDay,
   allowResidentQrThreeDays,
   allowResidentQrInfinite,
+  allowResidentQrSevenDays,
+  allowResidentQrSevenUses,
   enableResidentQrDateTime,
   enableResidentQrVehicleType,
   enableResidentQrVehicleCompanions,
@@ -23,6 +25,8 @@ export function UpdateResidentialSettingsForm({
   allowResidentQrOneDay: boolean;
   allowResidentQrThreeDays: boolean;
   allowResidentQrInfinite: boolean;
+  allowResidentQrSevenDays: boolean;
+  allowResidentQrSevenUses: boolean;
   enableResidentQrDateTime: boolean;
   enableResidentQrVehicleType: boolean;
   enableResidentQrVehicleCompanions: boolean;
@@ -67,6 +71,14 @@ export function UpdateResidentialSettingsForm({
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" name="allowResidentQrInfinite" value="on" defaultChecked={allowResidentQrInfinite} />
           Sin vencimiento (infinito)
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="allowResidentQrSevenDays" value="on" defaultChecked={allowResidentQrSevenDays} />
+          Valido por 7 dias
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="allowResidentQrSevenUses" value="on" defaultChecked={allowResidentQrSevenUses} />
+          7 ingresos (sin vencimiento)
         </label>
       </div>
 

@@ -5,7 +5,7 @@ import { createDeliveryQrAction, createInviteQrAction } from "@/app/resident/act
 
 const initialState: string | null = null;
 
-type ValidityType = "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE";
+type ValidityType = "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE" | "SEVEN_DAYS" | "SEVEN_USES";
 type QrCategory = "VISIT" | "DELIVERY";
 type VehicleType = "CARRO" | "MOTO" | "MICROBUS" | "CAMION" | "TAXI";
 
@@ -14,6 +14,8 @@ const VALIDITY_LABELS: Record<ValidityType, string> = {
   ONE_DAY: "Valido por 1 dia",
   THREE_DAYS: "Valido por maximo 3 dias",
   INFINITE: "Validez infinita (sin vencimiento)",
+  SEVEN_DAYS: "Valido por 7 dias",
+  SEVEN_USES: "7 ingresos (sin vencimiento)",
 };
 
 const VEHICLE_LABELS: Record<VehicleType, string> = {

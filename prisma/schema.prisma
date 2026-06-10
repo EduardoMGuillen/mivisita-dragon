@@ -23,6 +23,8 @@ enum QrValidity {
   ONE_DAY
   THREE_DAYS
   INFINITE
+  SEVEN_DAYS
+  SEVEN_USES
 }
 
 enum AnnouncementTargetMode {
@@ -74,6 +76,8 @@ model Residential {
   allowResidentQrOneDay     Boolean  @default(true)
   allowResidentQrThreeDays  Boolean  @default(true)
   allowResidentQrInfinite   Boolean  @default(true)
+  allowResidentQrSevenDays  Boolean  @default(false)
+  allowResidentQrSevenUses  Boolean  @default(false)
   enableResidentQrDateTime            Boolean @default(false)
   enableResidentQrVehicleType         Boolean @default(false)
   enableResidentQrVehicleCompanions   Boolean @default(false)

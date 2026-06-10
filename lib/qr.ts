@@ -1,18 +1,30 @@
 import { addDays } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
-export function calculateValidityWindow(
-  validityType: "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE",
-) {
+export type QrValidityType =
+  | "SINGLE_USE"
+  | "ONE_DAY"
+  | "THREE_DAYS"
+  | "INFINITE"
+  | "SEVEN_DAYS"
+  | "SEVEN_USES";
+
+export function calculateValidityWindow(validityType: QrValidityType) {
   const validFrom = new Date();
   if (validityType === "INFINITE") {
     return { validFrom, validUntil: new Date("2100-01-01T00:00:00.000Z"), maxUses: 2147483647 };
+  }
+  if (validityType === "SEVEN_USES") {
+    return { validFrom, validUntil: new Date("2100-01-01T00:00:00.000Z"), maxUses: 7 };
   }
   if (validityType === "SINGLE_USE") {
     return { validFrom, validUntil: addDays(validFrom, 3), maxUses: 1 };
   }
   if (validityType === "ONE_DAY") {
     return { validFrom, validUntil: addDays(validFrom, 1), maxUses: 9999 };
+  }
+  if (validityType === "SEVEN_DAYS") {
+    return { validFrom, validUntil: addDays(validFrom, 7), maxUses: 9999 };
   }
   return { validFrom, validUntil: addDays(validFrom, 3), maxUses: 9999 };
 }

@@ -7,9 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTimeTegucigalpa } from "@/lib/datetime";
 import { QrShareActions } from "@/app/resident/qr-share-actions";
 
-function validityLabel(validityType: "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE") {
+function validityLabel(validityType: "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE" | "SEVEN_DAYS" | "SEVEN_USES") {
   if (validityType === "SINGLE_USE") return "1 solo uso";
   if (validityType === "ONE_DAY") return "Valido por 1 dia";
+  if (validityType === "SEVEN_DAYS") return "Valido por 7 dias";
+  if (validityType === "SEVEN_USES") return "7 ingresos (sin vencimiento)";
   if (validityType === "INFINITE") return "Sin vencimiento";
   return "Valido por 3 dias";
 }

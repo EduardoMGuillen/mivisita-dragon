@@ -20,6 +20,8 @@ export function CreateAdminQrForm({
         <option value="SINGLE_USE">1 solo uso</option>
         <option value="ONE_DAY">Valido por 1 dia</option>
         <option value="THREE_DAYS">Valido por 3 dias</option>
+        <option value="SEVEN_DAYS">Valido por 7 dias</option>
+        <option value="SEVEN_USES">7 ingresos (sin vencimiento)</option>
         <option value="INFINITE">Validez infinita</option>
       </select>
       <input

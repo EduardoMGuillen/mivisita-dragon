@@ -75,7 +75,7 @@ const createAnnouncementSchema = z.object({
 
 const createAdminQrSchema = z.object({
   visitorName: z.string().min(2, "Nombre de visita invalido."),
-  validityType: z.enum(["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE"]),
+  validityType: z.enum(["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE", "SEVEN_DAYS", "SEVEN_USES"]),
   description: z.string().max(180).optional(),
   hasVehicle: z.enum(["yes", "no"]).default("no"),
   qrMode: z.enum(["GENERAL", "RESIDENT"]),
@@ -92,6 +92,8 @@ const updateResidentialSettingsSchema = z.object({
   allowResidentQrOneDay: z.enum(["on"]).optional(),
   allowResidentQrThreeDays: z.enum(["on"]).optional(),
   allowResidentQrInfinite: z.enum(["on"]).optional(),
+  allowResidentQrSevenDays: z.enum(["on"]).optional(),
+  allowResidentQrSevenUses: z.enum(["on"]).optional(),
   enableResidentQrDateTime: z.enum(["on"]).optional(),
   enableResidentQrVehicleType: z.enum(["on"]).optional(),
   enableResidentQrVehicleCompanions: z.enum(["on"]).optional(),
@@ -828,6 +830,8 @@ export async function updateResidentialSettingsAction(_prevState: string | null,
     allowResidentQrOneDay: formData.get("allowResidentQrOneDay") || undefined,
     allowResidentQrThreeDays: formData.get("allowResidentQrThreeDays") || undefined,
     allowResidentQrInfinite: formData.get("allowResidentQrInfinite") || undefined,
+    allowResidentQrSevenDays: formData.get("allowResidentQrSevenDays") || undefined,
+    allowResidentQrSevenUses: formData.get("allowResidentQrSevenUses") || undefined,
     enableResidentQrDateTime: formData.get("enableResidentQrDateTime") || undefined,
     enableResidentQrVehicleType: formData.get("enableResidentQrVehicleType") || undefined,
     enableResidentQrVehicleCompanions: formData.get("enableResidentQrVehicleCompanions") || undefined,
@@ -841,6 +845,8 @@ export async function updateResidentialSettingsAction(_prevState: string | null,
   const allowResidentQrOneDay = parsed.data.allowResidentQrOneDay === "on";
   const allowResidentQrThreeDays = parsed.data.allowResidentQrThreeDays === "on";
   const allowResidentQrInfinite = parsed.data.allowResidentQrInfinite === "on";
+  const allowResidentQrSevenDays = parsed.data.allowResidentQrSevenDays === "on";
+  const allowResidentQrSevenUses = parsed.data.allowResidentQrSevenUses === "on";
   const enableResidentQrDateTime = parsed.data.enableResidentQrDateTime === "on";
   const enableResidentQrVehicleType = parsed.data.enableResidentQrVehicleType === "on";
   const enableResidentQrVehicleCompanions = parsed.data.enableResidentQrVehicleCompanions === "on";
@@ -852,7 +858,9 @@ export async function updateResidentialSettingsAction(_prevState: string | null,
     !allowResidentQrSingleUse &&
     !allowResidentQrOneDay &&
     !allowResidentQrThreeDays &&
-    !allowResidentQrInfinite
+    !allowResidentQrInfinite &&
+    !allowResidentQrSevenDays &&
+    !allowResidentQrSevenUses
   ) {
     return "Debes mantener al menos una vigencia QR habilitada para residentes.";
   }
@@ -865,6 +873,8 @@ export async function updateResidentialSettingsAction(_prevState: string | null,
       allowResidentQrOneDay,
       allowResidentQrThreeDays,
       allowResidentQrInfinite,
+      allowResidentQrSevenDays,
+      allowResidentQrSevenUses,
       enableResidentQrDateTime,
       enableResidentQrVehicleType,
       enableResidentQrVehicleCompanions,

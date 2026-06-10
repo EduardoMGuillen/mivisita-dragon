@@ -18,6 +18,8 @@ export default async function ResidentialAdminConfigurationPage() {
       allowResidentQrOneDay: true,
       allowResidentQrThreeDays: true,
       allowResidentQrInfinite: true,
+      allowResidentQrSevenDays: true,
+      allowResidentQrSevenUses: true,
       enableResidentQrDateTime: true,
       enableResidentQrVehicleType: true,
       enableResidentQrVehicleCompanions: true,
@@ -37,6 +39,8 @@ export default async function ResidentialAdminConfigurationPage() {
           allowResidentQrOneDay={residential?.allowResidentQrOneDay ?? true}
           allowResidentQrThreeDays={residential?.allowResidentQrThreeDays ?? true}
           allowResidentQrInfinite={residential?.allowResidentQrInfinite ?? true}
+          allowResidentQrSevenDays={residential?.allowResidentQrSevenDays ?? false}
+          allowResidentQrSevenUses={residential?.allowResidentQrSevenUses ?? false}
           enableResidentQrDateTime={residential?.enableResidentQrDateTime ?? false}
           enableResidentQrVehicleType={residential?.enableResidentQrVehicleType ?? false}
           enableResidentQrVehicleCompanions={residential?.enableResidentQrVehicleCompanions ?? false}

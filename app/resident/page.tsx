@@ -15,7 +15,7 @@ type InviteWithImage = {
   id: string;
   code: string;
   visitorName: string;
-  validityType: "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE";
+  validityType: "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE" | "SEVEN_DAYS" | "SEVEN_USES";
   description?: string | null;
   hasVehicle: boolean;
   validUntil: Date;
@@ -31,23 +31,29 @@ type InviteWithImage = {
 function validityLabel(validityType: InviteWithImage["validityType"]) {
   if (validityType === "SINGLE_USE") return "1 solo uso";
   if (validityType === "ONE_DAY") return "Valido por 1 dia";
+  if (validityType === "SEVEN_DAYS") return "Valido por 7 dias";
+  if (validityType === "SEVEN_USES") return "7 ingresos (sin vencimiento)";
   if (validityType === "INFINITE") return "Sin vencimiento";
   return "Valido por 3 dias";
 }
 
-type AllowedValidity = "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE";
+type AllowedValidity = "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE" | "SEVEN_DAYS" | "SEVEN_USES";
 
 function allowedValidityTypesFromResidential(r: {
   allowResidentQrSingleUse: boolean;
   allowResidentQrOneDay: boolean;
   allowResidentQrThreeDays: boolean;
   allowResidentQrInfinite: boolean;
+  allowResidentQrSevenDays: boolean;
+  allowResidentQrSevenUses: boolean;
 }): AllowedValidity[] {
   const out: AllowedValidity[] = [];
   if (r.allowResidentQrSingleUse) out.push("SINGLE_USE");
   if (r.allowResidentQrOneDay) out.push("ONE_DAY");
   if (r.allowResidentQrThreeDays) out.push("THREE_DAYS");
   if (r.allowResidentQrInfinite) out.push("INFINITE");
+  if (r.allowResidentQrSevenDays) out.push("SEVEN_DAYS");
+  if (r.allowResidentQrSevenUses) out.push("SEVEN_USES");
   return out;
 }
 
@@ -66,6 +72,8 @@ export default async function ResidentPage() {
           allowResidentQrOneDay: true,
           allowResidentQrThreeDays: true,
           allowResidentQrInfinite: true,
+          allowResidentQrSevenDays: true,
+          allowResidentQrSevenUses: true,
           enableResidentQrDateTime: true,
           enableResidentQrVehicleType: true,
           enableResidentQrVehicleCompanions: true,
@@ -76,7 +84,7 @@ export default async function ResidentPage() {
 
   const allowedValidityTypes = residential
     ? allowedValidityTypesFromResidential(residential)
-    : (["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE"] as AllowedValidity[]);
+    : (["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE", "SEVEN_DAYS", "SEVEN_USES"] as AllowedValidity[]);
 
   const now = new Date();
   const scansInclude = {

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/authorization";
 import { prisma } from "@/lib/prisma";
-import { calculateValidityWindow } from "@/lib/qr";
+import { calculateValidityWindow, type QrValidityType } from "@/lib/qr";
 import { notifyGuardsInResidential, notifyResidentialAdminsInResidential } from "@/lib/push";
 import {
   zoneReservationError,
@@ -24,7 +24,7 @@ function translateZoneZodIssue(locale: ResidentLocale, message: string | undefin
 const createInviteSchema = z.object({
   category: z.enum(["VISIT", "DELIVERY"]).optional(),
   visitorName: z.string().min(2, "Nombre de visita invalido."),
-  validityType: z.enum(["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE"]),
+  validityType: z.enum(["SINGLE_USE", "ONE_DAY", "THREE_DAYS", "INFINITE", "SEVEN_DAYS", "SEVEN_USES"]),
   description: z.string().max(180, "Descripcion demasiado larga.").optional(),
   hasVehicle: z.enum(["yes", "no"]).default("no"),
   scheduleEnabled: z.enum(["on"]).optional(),
@@ -142,6 +142,8 @@ export async function createInviteQrAction(_prevState: string | null, formData: 
       allowResidentQrOneDay: true,
       allowResidentQrThreeDays: true,
       allowResidentQrInfinite: true,
+      allowResidentQrSevenDays: true,
+      allowResidentQrSevenUses: true,
       enableResidentQrDateTime: true,
       enableResidentQrVehicleType: true,
       enableResidentQrVehicleCompanions: true,
@@ -157,7 +159,7 @@ export async function createInviteQrAction(_prevState: string | null, formData: 
   let maxUses: number;
   let scheduledStartsAt: Date | null = null;
   let durationHours: number | null = null;
-  let validityType: "SINGLE_USE" | "ONE_DAY" | "THREE_DAYS" | "INFINITE" = parsed.data.validityType;
+  let validityType: QrValidityType = parsed.data.validityType;
 
   if (scheduleMode) {
     const startsAtRaw = parsed.data.startsAt?.trim() ?? "";
@@ -177,6 +179,8 @@ export async function createInviteQrAction(_prevState: string | null, formData: 
       ONE_DAY: policy.allowResidentQrOneDay,
       THREE_DAYS: policy.allowResidentQrThreeDays,
       INFINITE: policy.allowResidentQrInfinite,
+      SEVEN_DAYS: policy.allowResidentQrSevenDays,
+      SEVEN_USES: policy.allowResidentQrSevenUses,
     };
     if (!allowed[parsed.data.validityType]) {
       return "La administracion deshabilito esta vigencia QR para residentes.";
