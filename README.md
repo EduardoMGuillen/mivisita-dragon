@@ -58,7 +58,7 @@ Adicionalmente existen **reservas de zonas comunes**, **comunicados push**, **de
 
 **Escanear QR**
 
-- Modo **entrada**: valida codigo, abre modal para foto de ID (y placa si `hasVehicle`). La imagen se comprime en el cliente (~400 KB) antes de enviar.
+- Modo **entrada**: valida codigo, abre modal para foto de ID (y placa si `hasVehicle`). La imagen se comprime en el cliente (~1 MB) antes de enviar.
 - Modo **salida**: registra `exitedAt` en el ultimo ingreso valido del QR.
 - Endpoint: `/api/guard/scan` y `/api/guard/scan-with-id`.
 
@@ -136,7 +136,7 @@ Adicionalmente existen **reservas de zonas comunes**, **comunicados push**, **de
 
 | Tipo | Objetivo al guardar | Tope servidor |
 |------|---------------------|---------------|
-| ID / placa | ~400 KB (JPEG, max 1280px) | 512 KB |
+| ID / placa | ~1 MB (JPEG, max 1920px) | 2.5 MB |
 | Selfie turno guardia | ~320 KB (max 960px) | 512 KB |
 
 - Compresion en cliente (`lib/optimize-image-upload.ts`) antes de server actions o API.

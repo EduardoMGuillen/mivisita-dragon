@@ -1,5 +1,11 @@
 import {
+  EVIDENCE_PHOTO_INITIAL_QUALITY,
+  EVIDENCE_PHOTO_MAX_ATTEMPTS,
   EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
+  EVIDENCE_PHOTO_MIN_QUALITY,
+  EVIDENCE_PHOTO_QUALITY_STEP_HIGH,
+  EVIDENCE_PHOTO_QUALITY_STEP_LOW,
+  EVIDENCE_PHOTO_SCALE_STEP,
   EVIDENCE_PHOTO_TARGET_BYTES,
   SELFIE_PHOTO_MAX_LONGEST_SIDE,
   SELFIE_PHOTO_TARGET_BYTES,
@@ -57,21 +63,19 @@ function resolveOptions(input?: number | OptimizeImageOptions): OptimizeImageOpt
   if (typeof input === "number") {
     return {
       maxBytes: input,
-      maxLongestSide: EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
-      initialQuality: 0.82,
+      maxLongestSide: SELFIE_PHOTO_MAX_LONGEST_SIDE,
+      initialQuality: 0.78,
     };
   }
   return {
-    maxBytes: input?.maxBytes ?? EVIDENCE_PHOTO_TARGET_BYTES,
-    maxLongestSide: input?.maxLongestSide ?? EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
-    initialQuality: input?.initialQuality ?? 0.82,
+    maxBytes: input?.maxBytes ?? SELFIE_PHOTO_TARGET_BYTES,
+    maxLongestSide: input?.maxLongestSide ?? SELFIE_PHOTO_MAX_LONGEST_SIDE,
+    initialQuality: input?.initialQuality ?? 0.78,
   };
 }
 
-export async function optimizeImageForUpload(
-  file: File,
-  options?: number | OptimizeImageOptions,
-): Promise<File> {
+/** Bucle generico para selfies (politica aparte, mas agresiva). */
+async function optimizeImageForUpload(file: File, options?: number | OptimizeImageOptions): Promise<File> {
   const { maxBytes, maxLongestSide, initialQuality } = resolveOptions(options);
 
   if (file.size > 0 && file.size <= maxBytes && file.type === "image/jpeg") {
@@ -82,7 +86,7 @@ export async function optimizeImageForUpload(
   const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
   const initialScale = longestSide > maxLongestSide ? maxLongestSide / longestSide : 1;
   let scale = initialScale;
-  let quality = initialQuality ?? 0.82;
+  let quality = initialQuality ?? 0.78;
   let bestBlob: Blob | null = null;
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
@@ -115,12 +119,51 @@ export async function optimizeImageForUpload(
   });
 }
 
-/** ID y placa: ~400 KB, 1280px max. */
-export function optimizeEvidencePhoto(file: File) {
-  return optimizeImageForUpload(file, {
-    maxBytes: EVIDENCE_PHOTO_TARGET_BYTES,
-    maxLongestSide: EVIDENCE_PHOTO_MAX_LONGEST_SIDE,
-    initialQuality: 0.82,
+/**
+ * ID y placa: alineado con MiVisita (2 MB / 1920px) pero objetivo 1 MB en Dragon.
+ * JPG, PNG, WEBP -> JPEG; sin recomprimir si ya es JPEG <= objetivo.
+ */
+export async function optimizeEvidencePhoto(file: File): Promise<File> {
+  const maxBytes = EVIDENCE_PHOTO_TARGET_BYTES;
+  const maxLongestSide = EVIDENCE_PHOTO_MAX_LONGEST_SIDE;
+
+  if (file.size > 0 && file.size <= maxBytes && file.type === "image/jpeg") {
+    return file;
+  }
+
+  const image = await loadImageElement(file);
+  const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
+  let scale = longestSide > maxLongestSide ? maxLongestSide / longestSide : 1;
+  let quality = EVIDENCE_PHOTO_INITIAL_QUALITY;
+  let bestBlob: Blob | null = null;
+
+  for (let attempt = 0; attempt < EVIDENCE_PHOTO_MAX_ATTEMPTS; attempt += 1) {
+    const width = image.naturalWidth * scale;
+    const height = image.naturalHeight * scale;
+    const candidateBlob = await canvasToJpegBlob(image, width, height, quality);
+    bestBlob = candidateBlob;
+    if (candidateBlob.size <= maxBytes) {
+      return new File([candidateBlob], fileNameToJpeg(file.name), {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+    }
+
+    if (quality > 0.5) {
+      quality -= EVIDENCE_PHOTO_QUALITY_STEP_HIGH;
+    } else {
+      scale *= EVIDENCE_PHOTO_SCALE_STEP;
+      quality = Math.max(EVIDENCE_PHOTO_MIN_QUALITY, quality - EVIDENCE_PHOTO_QUALITY_STEP_LOW);
+    }
+  }
+
+  if (!bestBlob) {
+    throw new Error("No se pudo optimizar la imagen.");
+  }
+
+  return new File([bestBlob], fileNameToJpeg(file.name), {
+    type: "image/jpeg",
+    lastModified: Date.now(),
   });
 }
 

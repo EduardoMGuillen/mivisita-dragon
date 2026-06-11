@@ -11,7 +11,7 @@ export function validateIdPhotoFile(file: File) {
   }
   if (file.size > SERVER_EVIDENCE_PHOTO_MAX_BYTES) {
     throw new Error(
-      `La foto supera el limite de ${Math.round(SERVER_EVIDENCE_PHOTO_MAX_BYTES / 1024)} KB. Intenta de nuevo; se optimiza automaticamente al capturar.`,
+      "La foto supera el limite de 2.5 MB. Intenta de nuevo; se optimiza automaticamente al capturar.",
     );
   }
 }

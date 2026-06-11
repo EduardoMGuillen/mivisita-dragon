@@ -72,7 +72,7 @@ export function EvidencePhotoField({
           )}
         </span>
       </div>
-      <p className="text-xs text-slate-500">Se comprime automaticamente (~400 KB max) para guardar en servidor.</p>
+      <p className="text-xs text-slate-500">Se comprime automaticamente (~1 MB max) para guardar en servidor.</p>
     </div>
   );
 }
