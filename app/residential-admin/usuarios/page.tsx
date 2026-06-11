@@ -32,13 +32,23 @@ export default async function ResidentialAdminUsersPage({
   const searchTerm = getSingleParam(params.q).trim();
   const roleFilter = getSingleParam(params.role).trim();
   const statusFilter = getSingleParam(params.status).trim();
+  const categoryFilter = getSingleParam(params.category).trim();
   const normalizedRoleFilter = roleFilter === "RESIDENT" || roleFilter === "GUARD" ? roleFilter : "";
+  const normalizedCategoryFilter =
+    categoryFilter === "OWNER" || categoryFilter === "TENANT" ? categoryFilter : "";
 
   const usersWhere: Prisma.UserWhereInput = {
     residentialId: session.residentialId,
-    role: normalizedRoleFilter
-      ? (normalizedRoleFilter as "RESIDENT" | "GUARD")
-      : { in: ["RESIDENT", "GUARD"] },
+    ...(normalizedCategoryFilter
+      ? {
+          role: "RESIDENT",
+          residentCategory: normalizedCategoryFilter,
+        }
+      : {
+          role: normalizedRoleFilter
+            ? (normalizedRoleFilter as "RESIDENT" | "GUARD")
+            : { in: ["RESIDENT", "GUARD"] },
+        }),
     ...(statusFilter === "active"
       ? { isSuspended: false }
       : statusFilter === "suspended"
@@ -95,11 +105,11 @@ export default async function ResidentialAdminUsersPage({
           {residentUsersCount} | Guardias: {guardUsersCount})
         </h2>
 
-        <form method="get" className="mb-4 grid gap-2 md:grid-cols-4">
+        <form method="get" className="mb-4 grid gap-2 md:grid-cols-5">
           <input
             name="q"
             defaultValue={searchTerm}
-            className="field-base"
+            className="field-base md:col-span-2"
             placeholder="Buscar nombre, correo o vivienda"
           />
           <select name="role" defaultValue={roleFilter} className="field-base">
@@ -107,12 +117,17 @@ export default async function ResidentialAdminUsersPage({
             <option value="RESIDENT">Residentes</option>
             <option value="GUARD">Guardias</option>
           </select>
+          <select name="category" defaultValue={categoryFilter} className="field-base">
+            <option value="">Dueños e inquilinos</option>
+            <option value="OWNER">Dueños</option>
+            <option value="TENANT">Inquilinos</option>
+          </select>
           <select name="status" defaultValue={statusFilter} className="field-base">
             <option value="">Todos los estados</option>
             <option value="active">Activos</option>
             <option value="suspended">Suspendidos</option>
           </select>
-          <button type="submit" className="btn-primary w-full">
+          <button type="submit" className="btn-primary w-full md:col-span-5 md:w-max">
             Aplicar filtros
           </button>
         </form>
@@ -226,7 +241,11 @@ export default async function ResidentialAdminUsersPage({
             </div>
           ))}
           {users.length === 0 ? (
-            <p className="text-sm text-slate-600">No hay usuarios creados todavia.</p>
+            <p className="text-sm text-slate-600">
+              {searchTerm || normalizedRoleFilter || normalizedCategoryFilter || statusFilter
+                ? "No hay usuarios que coincidan con los filtros."
+                : "No hay usuarios creados todavia."}
+            </p>
           ) : null}
         </div>
       </Card>
