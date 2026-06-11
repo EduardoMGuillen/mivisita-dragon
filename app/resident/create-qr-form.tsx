@@ -40,7 +40,7 @@ export function CreateQrForm({
   enableResidentDeliveryQr: boolean;
 }) {
   const [category, setCategory] = useState<QrCategory>("VISIT");
-  const [hasVehicle, setHasVehicle] = useState<"yes" | "no">("no");
+  const [hasVehicle, setHasVehicle] = useState<"yes" | "no">("yes");
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const isDelivery = category === "DELIVERY";
 
@@ -79,6 +79,8 @@ export function CreateQrForm({
               if (next === "DELIVERY") {
                 setHasVehicle("no");
                 setScheduleEnabled(true);
+              } else {
+                setHasVehicle("yes");
               }
             }}
             className="field-base"
@@ -91,20 +93,26 @@ export function CreateQrForm({
         <input type="hidden" name="category" value="VISIT" />
       )}
 
-      <input
-        name="visitorName"
-        required
-        placeholder={isDelivery ? "Nombre del repartidor / empresa" : "Nombre de la visita"}
-        className="field-base md:col-span-2"
-      />
+      <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600 md:col-span-2">
+        {isDelivery ? "Nombre del repartidor / empresa" : "Nombre de la visita"}
+        <input
+          name="visitorName"
+          required
+          placeholder={isDelivery ? "Ej. Uber Eats, repartidor Juan" : "Ej. Maria Lopez"}
+          className="field-base"
+        />
+      </label>
 
       {!isDelivery ? (
-        <input
-          name="description"
-          placeholder="Descripcion (opcional)"
-          className="field-base md:col-span-2"
-          maxLength={180}
-        />
+        <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600 md:col-span-2">
+          Descripcion
+          <input
+            name="description"
+            placeholder="Opcional"
+            className="field-base"
+            maxLength={180}
+          />
+        </label>
       ) : (
         <input type="hidden" name="description" value="" />
       )}
@@ -145,15 +153,18 @@ export function CreateQrForm({
 
       {showLegacyValidity ? (
         hasAllowedValidity ? (
-          <select name="validityType" defaultValue={validityOptions[0]} className="field-base">
-            {validityOptions.map((option) => (
-              <option key={option} value={option}>
-                {VALIDITY_LABELS[option]}
-              </option>
-            ))}
-          </select>
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600 md:col-span-2">
+            Duracion del QR
+            <select name="validityType" defaultValue={validityOptions[0]} className="field-base">
+              {validityOptions.map((option) => (
+                <option key={option} value={option}>
+                  {VALIDITY_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </label>
         ) : (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 md:col-span-2">
             Sin vigencias habilitadas
           </p>
         )
@@ -162,15 +173,18 @@ export function CreateQrForm({
       )}
 
       {!isDelivery ? (
-        <select
-          name="hasVehicle"
-          value={hasVehicle}
-          onChange={(e) => setHasVehicle(e.target.value === "yes" ? "yes" : "no")}
-          className="field-base"
-        >
-          <option value="no">Acceso peatonal</option>
-          <option value="yes">Vehiculo</option>
-        </select>
+        <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-slate-600 md:col-span-2">
+          Tipo de acceso
+          <select
+            name="hasVehicle"
+            value={hasVehicle}
+            onChange={(e) => setHasVehicle(e.target.value === "yes" ? "yes" : "no")}
+            className="field-base"
+          >
+            <option value="no">Acceso peatonal</option>
+            <option value="yes">Vehiculo</option>
+          </select>
+        </label>
       ) : (
         <input type="hidden" name="hasVehicle" value="no" />
       )}
